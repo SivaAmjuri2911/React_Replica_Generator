@@ -1,0 +1,442 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.app {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 32px 20px 80px;
+}
+
+header h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+}
+
+.muted {
+  color: #64748b;
+  font-size: 14px;
+}
+
+.error-text {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+section {
+  margin-top: 32px;
+}
+
+section h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+button {
+  background: #14b8a6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+button:hover:not(:disabled) {
+  background: #0d9488;
+}
+
+button:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.job-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.job-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.job-header h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+}
+
+.status-pending {
+  background: #94a3b8;
+}
+
+.status-running {
+  background: #6366f1;
+}
+
+.status-succeeded {
+  background: #10b981;
+}
+
+.status-failed {
+  background: #f43f5e;
+}
+
+.result-block {
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.result-success {
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+}
+
+.result-failure {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.result-block dl {
+  margin: 8px 0 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+}
+
+.result-block dt {
+  font-weight: 600;
+  color: #334155;
+}
+
+.result-block dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+.log-panel summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #334155;
+  margin-bottom: 8px;
+}
+
+.log-lines {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.log-line {
+  padding: 1px 0;
+}
+
+.log-timestamp {
+  color: #64748b;
+}
+
+.log-warn {
+  color: #fbbf24;
+}
+
+.log-error {
+  color: #fb7185;
+}
+
+.analyze-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.analyze-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.analyze-form input[type='text'],
+.analyze-form input[type='password'],
+.analyze-form textarea,
+.analyze-form select {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  resize: vertical;
+}
+
+.analyze-form input[type='file'] {
+  font-size: 13px;
+}
+
+.analyze-form-provider {
+  display: flex;
+  gap: 16px;
+}
+
+.analyze-form-radio {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.analyze-form-uploads {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.analyze-form button {
+  align-self: flex-start;
+}
+
+.download-link {
+  display: inline-block;
+  color: #0d9488;
+  font-weight: 600;
+  font-size: 12px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.download-link:hover {
+  text-decoration: underline;
+}
+
+.download-link-primary {
+  display: inline-block;
+  margin-top: 10px;
+  background: #14b8a6;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+.download-link-primary:hover {
+  background: #0d9488;
+  text-decoration: none;
+}
+
+.path-list {
+  margin: 0;
+  padding-left: 18px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.path-list li {
+  margin-bottom: 2px;
+}
+
+/* Spinner */
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  color: #6366f1;
+  animation: spinner-rotate 0.7s linear infinite;
+}
+
+.spinner-lg {
+  width: 22px;
+  height: 22px;
+  border-width: 3px;
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Step tracker (left-hand progress rail for both the draft and build jobs) */
+
+.step-tracker-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.step-tracker {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: background-color 0.25s ease;
+}
+
+.step-item-running {
+  background: #eef2ff;
+}
+
+.step-item-failed {
+  background: #fff1f2;
+}
+
+.step-icon {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  color: #fff;
+}
+
+.step-icon-pending {
+  width: 14px;
+  height: 14px;
+  margin: 2px 2px 2px 0;
+  border: 2px solid #cbd5e1;
+}
+
+.step-icon-succeeded {
+  background: #10b981;
+  animation: step-pop 0.3s ease;
+}
+
+.step-icon-failed {
+  background: #f43f5e;
+  animation: step-pop 0.3s ease;
+}
+
+@keyframes step-pop {
+  from {
+    transform: scale(0.8);
+    opacity: 0.4;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.step-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.step-item-pending .step-label {
+  color: #94a3b8;
+}
+
+.step-item-running .step-label {
+  color: #312e81;
+  font-weight: 600;
+}
+
+.step-item-failed .step-label {
+  color: #be123c;
+  font-weight: 600;
+}
+
+.step-detail {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Two-column layout while a job is actively running */
+
+.job-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.step-tracker-panel {
+  flex: 0 0 260px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  position: sticky;
+  top: 20px;
+}
+
+.job-layout-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 760px) {
+  .job-layout {
+    flex-direction: column;
+  }
+
+  .step-tracker-panel {
+    flex: 1 1 auto;
+    position: static;
+  }
+}
