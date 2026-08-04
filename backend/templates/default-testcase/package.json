@@ -1,0 +1,43 @@
+{
+  "name": "bid-project",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "export NODE_OPTIONS=\"--max-old-space-size=4096\" && vite",
+    "build": "export NODE_OPTIONS=\"--max-old-space-size=4096\" && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test": "vitest --run",
+    "preinstall": "pnpm install ~/.ccbp/ccbp-jest-reporter"
+  },
+  "dependencies": {
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-router-dom": "^6.28.0",
+    "ccbp-jest-reporter": "file:~/.ccbp/ccbp-jest-reporter"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.21.0",
+    "@testing-library/dom": "10.4.0",
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.2.0",
+    "@testing-library/user-event": "14.6.1",
+    "@types/react": "19.0.10",
+    "@types/react-dom": "19.0.4",
+    "@vitejs/plugin-react": "4.3.4",
+    "eslint": "9.21.0",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-prettier": "5.2.3",
+    "eslint-plugin-react": "7.37.4",
+    "eslint-plugin-react-hooks": "5.1.0",
+    "eslint-plugin-react-refresh": "0.4.19",
+    "globals": "15.14.0",
+    "vite": "6.2.0",
+    "vite-plugin-eslint": "1.8.1",
+    "jsdom": "26.0.0",
+    "vitest": "3.0.8",
+    "msw": "^2.12.7",
+    "history": "^5.3.0"
+  }
+}

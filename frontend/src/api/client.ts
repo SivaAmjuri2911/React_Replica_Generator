@@ -1,6 +1,10 @@
 import type { AnalysisJob, GenerationJob, LlmProvider, ModelSummary } from '../types.js';
 
-const BASE_URL = '/api';
+// Same-origin '/api' works when a reverse proxy sits in front of both frontend and backend
+// (or in local dev, via vite.config.ts's proxy). Deployed as two separate origins (e.g.
+// frontend on Vercel, backend on Render), set VITE_API_BASE_URL at build time to the
+// backend's full URL instead — the backend already sends permissive CORS headers.
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {

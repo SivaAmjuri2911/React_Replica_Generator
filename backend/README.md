@@ -136,8 +136,8 @@ Only `prefilled_code` and `solution_code` are uploaded — `testcase` (the pnpm/
 harness) is structurally identical across every scenario per GENERATION_RULES.md (nothing in it is
 ever authored directly; only package.json's name field and the promoted test file change, both
 applied downstream by `GenerationPipeline`). So it's a fixed server-side template, read from
-`DEFAULT_BASE_TESTCASE` (env var, defaults to the sibling `Bid_tests` folder) rather than
-re-uploaded on every run — see `InMemoryAnalysisJobService`.
+`DEFAULT_BASE_TESTCASE` (env var, defaults to the bundled `templates/default-testcase/` folder)
+rather than re-uploaded on every run — see `InMemoryAnalysisJobService`.
 
 `analyze` never touches `testcase` or the base folders — it only reads `solution_code`'s source
 files and writes `scenarios/<slug>/spec.json` plus its staged manually-authored file contents.

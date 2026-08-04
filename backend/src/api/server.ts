@@ -24,11 +24,12 @@ const UPLOADS_ROOT = path.join(PROJECT_ROOT, 'tmp', 'uploads');
 const PORT = Number(process.env.PORT ?? 4000);
 // testcase (the pnpm/ccbp-jest-reporter harness) is structurally identical across every
 // scenario — see InMemoryAnalysisJobService's doc comment — so it's a fixed server-side
-// template rather than something re-uploaded per run. Override via DEFAULT_BASE_TESTCASE
-// if this machine's base package lives somewhere other than the sibling Bid_tests folder.
+// template rather than something re-uploaded per run. Bundled inside the repo (rather than
+// pointing outside it) so a deploy of just this repo has everything it needs; override via
+// DEFAULT_BASE_TESTCASE if a given environment should use a different base package.
 const DEFAULT_BASE_TESTCASE = process.env.DEFAULT_BASE_TESTCASE
   ? path.resolve(process.env.DEFAULT_BASE_TESTCASE)
-  : path.resolve(PROJECT_ROOT, '../../Bid_tests');
+  : path.resolve(PROJECT_ROOT, 'templates', 'default-testcase');
 
 await fs.mkdir(UPLOADS_ROOT, { recursive: true });
 
