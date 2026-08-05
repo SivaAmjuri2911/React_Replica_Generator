@@ -97,6 +97,22 @@ export class TransformSolutionCodeStep implements PipelineStep {
     await this.renamePackageIfPresent(path.join(destination, 'package.json'), expectedName);
     await this.renamePackageIfPresent(path.join(destination, 'package-lock.json'), expectedName);
 
+    // BuildIdeBasedCodingJsonStep needs README.md's content for question_text, but doesn't run
+    // until after ValidateJavaScriptSyntaxStep/ValidateImportResolutionStep/ValidateSolutionTestsStep
+    // (a real npm install + test cycle, tens of seconds at minimum). Checking here instead means a
+    // draft whose fileRenames/manuallyAuthoredRelativePaths drop or rename README.md away fails in
+    // milliseconds, right where the mistake was made, instead of burning an entire self-correction
+    // attempt's worth of install+test time only to fail on something the tests never touched.
+    const readmePath = path.join(destination, 'README.md');
+    if (!(await this.fileSystem.exists(readmePath))) {
+      throw new FileSystemError(
+        `solution_code has no README.md after transformation — it must survive as "README.md" ` +
+          `(via a byte-for-byte copy, a transformable path, or a manually-authored file), since ` +
+          `BuildIdeBasedCodingJsonStep uses its content as the platform's question_text.`,
+        { readmePath }
+      );
+    }
+
     context.solutionCodePath = destination;
   }
 
