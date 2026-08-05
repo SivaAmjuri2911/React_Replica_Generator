@@ -5,6 +5,7 @@ import type { FileSystemService } from '../../services/fileSystem/FileSystemServ
 import type { IdGeneratorService } from '../../services/idGenerator/IdGeneratorService.js';
 import { packageName } from '../../domain/models/ScenarioSpec.js';
 import { toIdeBasedCodingTestCase } from '../../domain/models/TestCase.js';
+import { findReadmeFile } from './findReadmeFile.js';
 import { FileSystemError } from '../../domain/errors/GenerationError.js';
 
 interface IdeBasedCodingDocument {
@@ -51,7 +52,16 @@ export class BuildIdeBasedCodingJsonStep implements PipelineStep {
       );
     }
 
-    const readmeResult = await this.fileSystem.readFile(path.join(context.solutionCodePath, 'README.md'));
+    // TransformSolutionCodeStep already guarantees a readme exists here (any casing) — this
+    // step still resolves it itself, via the same case-insensitive lookup, rather than assuming
+    // the exact filename "README.md".
+    const readmePath = await findReadmeFile(this.fileSystem, context.solutionCodePath);
+    if (!readmePath) {
+      throw new FileSystemError(`No readme file found at the root of "${context.solutionCodePath}"`, {
+        solutionCodePath: context.solutionCodePath,
+      });
+    }
+    const readmeResult = await this.fileSystem.readFile(readmePath);
     if (!readmeResult.ok) {
       throw readmeResult.error;
     }
