@@ -21,7 +21,14 @@ export class NpmVitestRunnerService implements TestRunnerService {
   async installDependencies(projectDir: string): Promise<Result<void, TestExecutionError>> {
     try {
       this.logger.info('Installing dependencies', { projectDir });
-      await execAsync(`${this.npmCommand} install`, { cwd: projectDir, maxBuffer: MAX_BUFFER_BYTES });
+      // --include=dev overrides npm's default of skipping devDependencies when NODE_ENV is
+      // "production" — exactly the environment most Node hosting platforms (Render included)
+      // set by default for a web service. Every test tool here (vite, vitest,
+      // @vitejs/plugin-react, jsdom, @testing-library/*) lives in devDependencies, so without
+      // this flag `npm install` reports success while silently installing none of them —
+      // surfacing later as a confusing Vite config-load failure instead of a clear "not
+      // found" at install time.
+      await execAsync(`${this.npmCommand} install --include=dev`, { cwd: projectDir, maxBuffer: MAX_BUFFER_BYTES });
       return ok(undefined);
     } catch (cause) {
       return err(
