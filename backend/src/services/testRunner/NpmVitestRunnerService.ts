@@ -33,6 +33,13 @@ export class NpmVitestRunnerService implements TestRunnerService {
   async runTests(projectDir: string): Promise<Result<TestRunResult, TestExecutionError>> {
     let rawOutput = '';
     try {
+      // Tried forcing --pool=forks --poolOptions.forks.singleFork to cut memory
+      // use on constrained hosts (fewer concurrent jsdom instances). Reverted:
+      // verified against a real generated project (TicketManagement_Solution,
+      // which passes 48/48 under normal settings) that single-fork mode causes
+      // 33/48 tests to fail — same failure count even with testTimeout raised to
+      // 30s, so it's not a timing issue, something about running all tests in
+      // one shared process breaks test isolation. Not safe to ship.
       const { stdout, stderr } = await execAsync(`${this.npmCommand} test -- --run`, {
         cwd: projectDir,
         maxBuffer: MAX_BUFFER_BYTES,

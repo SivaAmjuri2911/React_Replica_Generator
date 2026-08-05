@@ -140,22 +140,25 @@ export class SelfCorrectingScenarioWorkflow {
       } catch (cause) {
         const error = cause instanceof GenerationError ? cause : new PipelineStepError('GenerationPipeline', cause);
         lastError = error;
+        // Computed once and reused below — this is the same summary (with raw npm/vitest
+        // output, truncated + ANSI-stripped) that gets sent to the model for revision, so the
+        // server log carries exactly what the model saw instead of just a bare error code.
+        const failureSummary = this.summarizeFailureForRevision(error);
 
         if (attempt === maxAttempts) {
-          this.logger.warn('Exhausted all attempts without a passing generation', { attempts: maxAttempts });
+          this.logger.warn('Exhausted all attempts without a passing generation', {
+            attempts: maxAttempts,
+            lastFailure: failureSummary,
+          });
           break;
         }
 
         this.logger.warn(`Attempt ${attempt} failed — asking the model to revise its draft`, {
           code: error.code,
-          message: error.message,
+          failureSummary,
         });
 
-        const revisionResult = await this.generationService.reviseDraft(
-          generationRequest,
-          draft,
-          this.summarizeFailureForRevision(error)
-        );
+        const revisionResult = await this.generationService.reviseDraft(generationRequest, draft, failureSummary);
         if (!revisionResult.ok) {
           return err(revisionResult.error);
         }
