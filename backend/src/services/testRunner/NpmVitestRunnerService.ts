@@ -1,5 +1,7 @@
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import path from 'node:path';
+import { access } from 'node:fs/promises';
 import type { TestRunnerService, TestRunResult } from './TestRunnerService.js';
 import { err, ok, type Result } from '../../shared/Result.js';
 import { TestExecutionError } from '../../domain/errors/GenerationError.js';
@@ -8,6 +10,15 @@ import { parseVitestSummary } from './parseVitestSummary.js';
 
 const execAsync = promisify(exec);
 const MAX_BUFFER_BYTES = 10 * 1024 * 1024;
+
+async function hasLockfile(projectDir: string): Promise<boolean> {
+  try {
+    await access(path.join(projectDir, 'package-lock.json'));
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export class NpmVitestRunnerService implements TestRunnerService {
   private readonly logger: Logger;
@@ -20,15 +31,25 @@ export class NpmVitestRunnerService implements TestRunnerService {
 
   async installDependencies(projectDir: string): Promise<Result<void, TestExecutionError>> {
     try {
-      this.logger.info('Installing dependencies', { projectDir });
+      // `npm ci` installs exactly what package-lock.json pins — deterministic, same
+      // node_modules shape on every machine — instead of `npm install`'s fresh semver-range
+      // resolution, which can drift between environments (different registry state, platform,
+      // or npm version) even when package.json hasn't changed at all. That drift is exactly
+      // what caused a React 19 project to resolve a broken react/react-dom pairing on Render
+      // while installing cleanly on localhost from the same package.json. Only fall back to
+      // `npm install` when there's no lockfile to enforce (e.g. a hand-authored base project
+      // that never had `npm install` run against it before being zipped up).
+      const useCi = await hasLockfile(projectDir);
+      const installCommand = useCi ? `${this.npmCommand} ci --include=dev` : `${this.npmCommand} install --include=dev`;
+      this.logger.info('Installing dependencies', { projectDir, command: installCommand });
       // --include=dev overrides npm's default of skipping devDependencies when NODE_ENV is
       // "production" — exactly the environment most Node hosting platforms (Render included)
       // set by default for a web service. Every test tool here (vite, vitest,
       // @vitejs/plugin-react, jsdom, @testing-library/*) lives in devDependencies, so without
-      // this flag `npm install` reports success while silently installing none of them —
+      // this flag the install reports success while silently installing none of them —
       // surfacing later as a confusing Vite config-load failure instead of a clear "not
       // found" at install time.
-      await execAsync(`${this.npmCommand} install --include=dev`, { cwd: projectDir, maxBuffer: MAX_BUFFER_BYTES });
+      await execAsync(installCommand, { cwd: projectDir, maxBuffer: MAX_BUFFER_BYTES });
       return ok(undefined);
     } catch (cause) {
       return err(
