@@ -41,6 +41,25 @@ const API_KEY_PLACEHOLDER: Record<LlmProvider, string> = {
 /** How long to wait after the key stops changing before fetching its model list. */
 const FETCH_MODELS_DEBOUNCE_MS = 600;
 
+/**
+ * Anthropic keys start "sk-ant-" and OpenRouter keys start "sk-or-" — both are more specific
+ * prefixes of OpenAI's plain "sk-", so they must be checked first or every key would misdetect
+ * as OpenAI. A key format that matches none of these (a custom/enterprise key, say) returns
+ * undefined and leaves whatever provider is already selected alone.
+ */
+function detectProviderFromApiKey(apiKey: string): LlmProvider | undefined {
+  if (apiKey.startsWith('sk-ant-')) {
+    return 'anthropic';
+  }
+  if (apiKey.startsWith('sk-or-')) {
+    return 'openrouter';
+  }
+  if (apiKey.startsWith('sk-')) {
+    return 'openai';
+  }
+  return undefined;
+}
+
 interface ModelGroup {
   readonly vendor: string;
   readonly models: readonly ModelSummary[];
@@ -89,8 +108,11 @@ function groupModelsByVendor(models: readonly ModelSummary[], provider: LlmProvi
  * description field — the model reads the uploaded project itself and
  * invents an appropriate new domain (see scenarioSpecDraftContract.ts, rule
  * 10), and the scenario/output folder naming is likewise fully derived from
- * its answer. Pasting or typing a key auto-loads that provider's available
- * models — no explicit "load" action needed.
+ * its answer. Pasting or typing a key auto-detects its provider from the
+ * key's own prefix (see detectProviderFromApiKey) and auto-loads that
+ * provider's available models — no need to pick a provider or press a
+ * "load" action first; the Provider radio still exists for the rare key
+ * format the prefix check doesn't recognize.
  */
 export function AnalyzeForm({
   submitting,
@@ -107,6 +129,24 @@ export function AnalyzeForm({
   const [prefilledCodeZip, setPrefilledCodeZip] = useState<File | undefined>(undefined);
   const [solutionCodeZip, setSolutionCodeZip] = useState<File | undefined>(undefined);
 
+  // Detect the provider from the pasted key's own prefix instead of requiring the operator to
+  // pick a provider first — sk-ant-/sk-or-/sk- are distinct enough to tell apart reliably. Only
+  // switches when detection actually disagrees with the current selection, so re-running this
+  // effect after the switch (provider is a dependency) is a no-op rather than a loop, and a key
+  // format we don't recognize just leaves whatever was already selected alone.
+  useEffect(() => {
+    const trimmedKey = apiKey.trim();
+    if (trimmedKey.length === 0) {
+      return;
+    }
+    const detected = detectProviderFromApiKey(trimmedKey);
+    if (detected && detected !== provider) {
+      setProvider(detected);
+      setModelId('');
+      onProviderChange();
+    }
+  }, [apiKey, provider, onProviderChange]);
+
   useEffect(() => {
     const trimmedKey = apiKey.trim();
     if (trimmedKey.length === 0) {
@@ -117,6 +157,9 @@ export function AnalyzeForm({
     }, FETCH_MODELS_DEBOUNCE_MS);
     return () => clearTimeout(timeoutId);
   }, [apiKey, provider, onFetchModels]);
+
+  const trimmedApiKey = apiKey.trim();
+  const detectedProvider = trimmedApiKey.length > 0 ? detectProviderFromApiKey(trimmedApiKey) : undefined;
 
   const groupedModels = useMemo(() => groupModelsByVendor(models, provider), [models, provider]);
 
@@ -191,6 +234,10 @@ export function AnalyzeForm({
           disabled={submitting}
         />
       </label>
+
+      {detectedProvider && (
+        <p className="muted">Detected: {PROVIDER_LABELS[detectedProvider]} key — provider set automatically.</p>
+      )}
 
       {modelsLoading && <p className="muted">Loading available models…</p>}
       {modelsError && <p className="error-text">{modelsError}</p>}
