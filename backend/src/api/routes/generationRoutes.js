@@ -1,6 +1,8 @@
 import path from 'node:path';
 import { Router } from 'express';
 import { AdmZipZipCreationService } from '../../services/archive/AdmZipZipCreationService.js';
+import { buildOutputDeliverableZip, outputDeliverablePathsFromSpec, } from '../../services/archive/buildOutputDeliverableZip.js';
+import { ScenarioSpecLoader } from '../../config/ScenarioSpecLoader.js';
 
 /**
  * @typedef {object} StartGenerationRequestBody
@@ -15,31 +17,19 @@ const VALID_PROVIDERS = ['anthropic', 'openai', 'openrouter', 'mistral'];
 function isLlmProvider(value) {
     return typeof value === 'string' && VALID_PROVIDERS.includes(value);
 }
-/**
- * Bundles all four output pieces into one archive instead of four separate
- * downloads — prefilled_code / solution_code / testcase each keep their own
- * top-level folder name (matching the on-disk convention), and the JSON goes
- * under "output/IDE_BASED_CODING/{uuid}.json" alongside the three scenario folders. Built
- * on demand (never cached) since the output directory can still be touched
- * (e.g. re-validated) between polls — the download always reflects whatever
- * is on disk right now.
- */
-async function buildCombinedDownloadZip(zipCreation, result) {
-    const entries = [
-        { type: 'directory', sourcePath: result.prefilledCodePath, archiveFolderName: path.basename(result.prefilledCodePath) },
-        { type: 'directory', sourcePath: result.solutionCodePath, archiveFolderName: path.basename(result.solutionCodePath) },
-        { type: 'directory', sourcePath: result.testcasePath, archiveFolderName: path.basename(result.testcasePath) },
-        { type: 'file', sourcePath: result.ideBasedCodingJsonPath, archiveFolderName: path.join('output', 'IDE_BASED_CODING') },
-    ];
-    const zip = await zipCreation.zipBundle(entries);
-    if (!zip.ok) {
-        return { error: zip.error.message };
-    }
-    // The scenario's own folder-base name (e.g. "TourDepartureManagement") — same name every
-    // output folder is already built from, so the zip's own name matches what's inside it.
-    const scenarioFolderName = path.basename(result.prefilledCodePath);
-    return { filename: `${scenarioFolderName}.zip`, buffer: zip.value };
+const specLoader = new ScenarioSpecLoader();
+
+/** @param {import('../../domain/models/GeneratedProject.js').GeneratedProject} result */
+function outputDeliverablePathsFromResult(result) {
+    return {
+        prefilledCodePath: result.prefilledCodePath,
+        solutionCodePath: result.solutionCodePath,
+        testcasePath: result.testcasePath,
+        ideBasedCodingDir: path.dirname(result.ideBasedCodingJsonPath),
+        downloadName: path.basename(result.prefilledCodePath),
+    };
 }
+
 export function buildGenerationRoutes(jobService, zipCreation = new AdmZipZipCreationService()) {
     const router = Router();
     router.post('/generations', async (request, response) => {
@@ -105,14 +95,42 @@ export function buildGenerationRoutes(jobService, zipCreation = new AdmZipZipCre
             response.status(400).json({ error: `Job "${request.params.jobId}" has not succeeded yet` });
             return;
         }
-        const built = await buildCombinedDownloadZip(zipCreation, job.result);
-        if ('error' in built) {
-            response.status(500).json({ error: built.error });
+        try {
+            const built = await buildOutputDeliverableZip(zipCreation, outputDeliverablePathsFromResult(job.result));
+            if ('error' in built) {
+                response.status(500).json({ error: built.error });
+                return;
+            }
+            response.setHeader('Content-Type', 'application/zip');
+            response.setHeader('Content-Disposition', `attachment; filename="${built.filename}"`);
+            response.send(built.buffer);
+        }
+        catch (error) {
+            response.status(400).json({ error: error instanceof Error ? error.message : String(error) });
+        }
+    });
+
+    router.get('/generations/output/download', async (request, response) => {
+        const specPath = typeof request.query.specPath === 'string' ? request.query.specPath : undefined;
+        if (!specPath || specPath.trim().length === 0) {
+            response.status(400).json({ error: '"specPath" query parameter is required' });
             return;
         }
-        response.setHeader('Content-Type', 'application/zip');
-        response.setHeader('Content-Disposition', `attachment; filename="${built.filename}"`);
-        response.send(built.buffer);
+        try {
+            const spec = await specLoader.loadFromFile(specPath);
+            const built = await buildOutputDeliverableZip(zipCreation, outputDeliverablePathsFromSpec(spec));
+            if ('error' in built) {
+                response.status(500).json({ error: built.error });
+                return;
+            }
+            response.setHeader('Content-Type', 'application/zip');
+            response.setHeader('Content-Disposition', `attachment; filename="${built.filename}"`);
+            response.send(built.buffer);
+        }
+        catch (error) {
+            response.status(400).json({ error: error instanceof Error ? error.message : String(error) });
+        }
     });
+
     return router;
 }

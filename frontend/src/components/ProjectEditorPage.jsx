@@ -24,7 +24,12 @@ export function ProjectEditorPage({ item, onBack, onGenerate, generating, onActi
         }
         setDownloading(true);
         try {
-            await apiClient.downloadSessionZip(sessionSlug, `${item.title}.zip`);
+            if (item.specPath && item.kind === 'Build') {
+                await apiClient.downloadOutputFromSpec(item.specPath, `${item.title}.zip`);
+            }
+            else {
+                await apiClient.downloadSessionZip(sessionSlug, `${item.title}.zip`);
+            }
         }
         catch (error) {
             onActionError?.(error instanceof Error ? error.message : String(error));

@@ -214,6 +214,11 @@ export const apiClient = {
     async downloadGenerationZip(jobId, fallbackFilename) {
         await downloadFromApi(`/generations/${encodeURIComponent(jobId)}/download`, fallbackFilename ?? 'replica.zip');
     },
+    /** @param {string} specPath @param {string} [fallbackFilename] */
+    async downloadOutputFromSpec(specPath, fallbackFilename) {
+        const query = new URLSearchParams({ specPath });
+        await downloadFromApi(`/generations/output/download?${query.toString()}`, fallbackFilename ?? 'output.zip');
+    },
     /** @param {string} slug */
     async listSessionFileTree(slug) {
         const { tree } = await requestJson(`/analysis-sessions/${encodeURIComponent(slug)}/tree`);

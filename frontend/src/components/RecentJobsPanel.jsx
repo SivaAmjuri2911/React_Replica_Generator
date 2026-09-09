@@ -220,7 +220,12 @@ function RecentProjectCard({ item, selected, deleting, onOpenProject, onDeletePr
         }
         setDownloading(true);
         try {
-            await apiClient.downloadSessionZip(sessionSlug, `${item.title}.zip`);
+            if (item.specPath && item.kind === 'Build') {
+                await apiClient.downloadOutputFromSpec(item.specPath, `${item.title}.zip`);
+            }
+            else {
+                await apiClient.downloadSessionZip(sessionSlug, `${item.title}.zip`);
+            }
         }
         catch (error) {
             onActionError?.(error instanceof Error ? error.message : String(error));
@@ -312,8 +317,7 @@ export function RecentJobsPanel({ analysisJobs, generationJobs, analysisSessions
           </label>
         </div>
         <p className="muted scenarios-import-hint">
-          To restore local projects after deployment: run <code>npm run pack:scenarios</code> in the backend folder, then upload the zip here.
-          On Render free tier, projects can disappear after the server restarts — add a Persistent Disk in Render to keep them.
+          After Build finishes, download the output zip — it contains four folders (prefilled, solution, testcase, IDE_BASED_CODING). Save it locally; the deployed server does not keep projects permanently.
         </p>
         {importMessage && <p className="success-text">{importMessage}</p>}
         {importError && <p className="error-text">{importError}</p>}

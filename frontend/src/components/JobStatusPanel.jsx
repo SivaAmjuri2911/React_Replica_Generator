@@ -13,18 +13,6 @@ const STATUS_LABEL = {
     succeeded: 'Built',
     failed: 'Failed',
 };
-/**
- * Informational only — the actual download is one combined zip, not a per-folder link.
- * @param {{label: string, path: string}} props
- */
-function OutputRow({ label, path }) {
-    return (<>
-      <dt>{label}</dt>
-      <dd>
-        <code>{path}</code>
-      </dd>
-    </>);
-}
 /** @param {JobStatusPanelProps} props */
 export function JobStatusPanel({ job, onActionError }) {
     const [downloading, setDownloading] = useState(false);
@@ -56,18 +44,17 @@ export function JobStatusPanel({ job, onActionError }) {
             Replica built successfully
             {job.attemptsUsed !== undefined && job.attemptsUsed > 1 && (<span className="muted"> (took {job.attemptsUsed} attempts — auto-corrected)</span>)}
           </h3>
+          <p className="muted build-output-hint">
+            Your zip contains four folders: prefilled code, solution code, testcase, and <code>IDE_BASED_CODING</code>.
+          </p>
           <dl>
-            <OutputRow label="Starter code (prefilled_code)" path={job.result.prefilledCodePath}/>
-            <OutputRow label="Solution code (solution_code)" path={job.result.solutionCodePath}/>
-            <OutputRow label="Test suite (testcase)" path={job.result.testcasePath}/>
-            <OutputRow label="Platform question file (IDE_BASED_CODING JSON)" path={job.result.ideBasedCodingJsonPath}/>
             <dt>Test cases</dt>
             <dd>{job.result.testCases.length}</dd>
           </dl>
           <button type="button" className="download-link download-link-primary" disabled={downloading} onClick={() => void handleDownload()}>
-            {downloading ? 'Preparing download…' : 'Download Replica (.zip)'}
+            {downloading ? 'Preparing download…' : 'Download output (.zip)'}
           </button>
-          <p className="muted build-output-hint">Testcase and IDE JSON live under <code>output/</code> in the project folder — expand that folder after build finishes.</p>
+          <p className="muted build-output-hint">Save this zip — it is your final deliverable. The server does not keep projects permanently after deployment.</p>
         </div>)}
 
       {job.status === 'failed' && job.failure && (<div className="result-block result-failure">

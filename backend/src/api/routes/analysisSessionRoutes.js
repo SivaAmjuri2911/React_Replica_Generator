@@ -9,6 +9,7 @@ import { AdmZipZipCreationService } from '../../services/archive/AdmZipZipCreati
 import { ScenariosImportService } from '../../services/scenarios/ScenariosImportService.js';
 import { ScenarioSpecLoader } from '../../config/ScenarioSpecLoader.js';
 import { inspectSessionOutput } from '../services/sessionOutputStatus.js';
+import { buildOutputDeliverableZip, outputDeliverablePathsFromSpec, } from '../../services/archive/buildOutputDeliverableZip.js';
 import { migrateLegacyIdeBasedCodingLayout } from '../../config/migrateLegacyIdeBasedCodingLayout.js';
 import { getDevServer, registerDevServer, stopDevServersForProjectDir, unregisterDevServer, } from '../devServerRegistry.js';
 const ANALYSIS_SLUG_PATTERN = /^analysis-[a-z0-9-]+$/i;
@@ -351,7 +352,7 @@ export function buildAnalysisSessionRoutes(scenariosRoot, analysisJobService, up
         const sessionDir = path.join(scenariosRoot, slug);
         try {
             await fs.access(sessionDir);
-            const built = await buildSessionDownloadZip(zipCreation, sessionDir, slug);
+            const built = await buildSessionDownloadZip(zipCreation, sessionDir, slug, specLoader);
             if ('error' in built) {
                 response.status(built.status).json({ error: built.error });
                 return;
@@ -407,48 +408,25 @@ async function directoryHasEntries(directoryPath) {
     return entries.length > 0;
 }
 
-/** @param {import('../../services/archive/ZipCreationService.js').ZipCreationService} zipCreation @param {string} sessionDir @param {string} slug */
-async function buildSessionDownloadZip(zipCreation, sessionDir, slug) {
-    /** @type {import('../../services/archive/ZipCreationService.js').ZipBundleEntry[]} */
-    const entries = [];
-    let downloadName = slug;
-
-    const specPath = path.join(sessionDir, 'spec.json');
-    try {
-        const raw = await fs.readFile(specPath, 'utf8');
-        const parsed = JSON.parse(raw);
-        if (typeof parsed.scenarioName === 'string' && parsed.scenarioName.trim().length > 0) {
-            downloadName = parsed.scenarioName.trim();
-        }
-        entries.push({ type: 'file', sourcePath: specPath, archiveFolderName: '' });
-    }
-    catch {
-        // No spec yet — uploads/output may still be downloadable.
-    }
-
+/** @param {import('../../services/archive/ZipCreationService.js').ZipCreationService} zipCreation @param {string} sessionDir @param {string} slug @param {ScenarioSpecLoader} specLoader */
+async function buildSessionDownloadZip(zipCreation, sessionDir, slug, specLoader) {
     await migrateLegacyIdeBasedCodingLayout(sessionDir);
+    const specPath = path.join(sessionDir, 'spec.json');
 
-    const directoryNames = ['uploaded', 'output', 'staging'];
-    for (const directoryName of directoryNames) {
-        const directoryPath = path.join(sessionDir, directoryName);
-        if (await directoryHasEntries(directoryPath)) {
-            entries.push({ type: 'directory', sourcePath: directoryPath, archiveFolderName: directoryName });
+    try {
+        const spec = await specLoader.loadFromFile(specPath);
+        const built = await buildOutputDeliverableZip(zipCreation, outputDeliverablePathsFromSpec(spec));
+        if ('error' in built) {
+            return { error: built.error, status: 500 };
         }
+        return built;
     }
-
-    if (entries.length === 0) {
-        return { error: 'No files are available to download for this project yet', status: 400 };
+    catch (error) {
+        return {
+            error: error instanceof Error ? error.message : String(error),
+            status: 400,
+        };
     }
-
-    const zip = await zipCreation.zipBundle(entries);
-    if (!zip.ok) {
-        return { error: zip.error.message, status: 500 };
-    }
-
-    return {
-        filename: `${downloadName}.zip`,
-        buffer: zip.value,
-    };
 }
 
 /** @param {string} npmCommand @param {string} script */
