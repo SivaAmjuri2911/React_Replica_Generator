@@ -5,5 +5,5 @@ dist/
 output/
 # Runtime-generated per-run data (drafted specs, uploads, generated scenario output) —
 # not application code, regenerated fresh on every analyze/generate run.
-scenarios/
+/scenarios/
 tmp/

@@ -63,7 +63,7 @@ app.use('/api', buildScenarioRoutes(scenarioSpecRepository));
 app.use('/api', buildGenerationRoutes(generationJobService));
 app.use('/api', buildAnalysisRoutes(analysisJobService, UPLOADS_ROOT));
 app.use('/api', buildModelRoutes(modelCatalogsByProvider));
-app.use('/api', buildAnalysisSessionRoutes(SCENARIOS_ROOT, analysisJobService));
+app.use('/api', buildAnalysisSessionRoutes(SCENARIOS_ROOT, analysisJobService, UPLOADS_ROOT));
 app.use((_request, response) => {
     response.status(404).json({ error: 'Not found' });
 });

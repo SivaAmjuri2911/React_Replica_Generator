@@ -15,6 +15,7 @@ import { apiClient } from '../api/client.js';
  * @property {string|undefined} selectedPath
  * @property {(path: string) => void} onSelectFile
  * @property {(tree: FileTreeNode[]) => void} [onTreeLoaded]
+ * @property {number} [refreshToken]
  */
 
 /** @param {string} name */
@@ -67,8 +68,31 @@ function TreeNode({ node, depth, selectedPath, expandedPaths, onToggle, onSelect
     </li>);
 }
 
+/** @param {import('./ScenarioFileExplorer.jsx').FileTreeNode[]} nodes */
+function collectDefaultExpandedPaths(nodes) {
+    /** @type {string[]} */
+    const paths = ['uploaded', 'output', 'spec.json'];
+    for (const node of nodes) {
+        if (node.type !== 'directory') {
+            continue;
+        }
+        paths.push(node.path);
+        if (node.path === 'output' && node.children) {
+            for (const child of node.children) {
+                if (child.type === 'directory') {
+                    paths.push(child.path);
+                }
+            }
+        }
+        if (node.name === 'IDE_BASED_CODING' || node.name.endsWith('_tests')) {
+            paths.push(node.path);
+        }
+    }
+    return paths;
+}
+
 /** @param {ScenarioFileExplorerProps} props */
-export function ScenarioFileExplorer({ sessionSlug, selectedPath, onSelectFile, onTreeLoaded }) {
+export function ScenarioFileExplorer({ sessionSlug, selectedPath, onSelectFile, onTreeLoaded, refreshToken = 0 }) {
     const [tree, setTree] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(undefined);
@@ -83,10 +107,8 @@ export function ScenarioFileExplorer({ sessionSlug, selectedPath, onSelectFile, 
             onTreeLoaded?.(result);
             setExpandedPaths((current) => {
                 const next = new Set(current);
-                for (const node of result) {
-                    if (node.type === 'directory') {
-                        next.add(node.path);
-                    }
+                for (const path of collectDefaultExpandedPaths(result)) {
+                    next.add(path);
                 }
                 return next;
             });
@@ -102,7 +124,7 @@ export function ScenarioFileExplorer({ sessionSlug, selectedPath, onSelectFile, 
 
     useEffect(() => {
         void loadTree();
-    }, [loadTree]);
+    }, [loadTree, refreshToken]);
 
     const handleToggle = useCallback((path) => {
         setExpandedPaths((current) => {

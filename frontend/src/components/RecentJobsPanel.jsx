@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { apiClient } from '../api/client.js';
 import { resolveSessionSlug } from '../utils/sessionSlug.js';
 
+/** @param {string|undefined} specPath */
+function sessionSlugFromSpecPath(specPath) {
+    if (!specPath) {
+        return undefined;
+    }
+    return resolveSessionSlug({ specPath });
+}
+
 /**
  * @typedef {object} RecentProjectItem
  * @property {string} id
@@ -31,6 +39,7 @@ import { resolveSessionSlug } from '../utils/sessionSlug.js';
  * @property {(item: RecentProjectItem) => void} onDeleteProject
  * @property {(message: string) => void} [onActionError]
  * @property {(specPath: string) => void} onBuildFromSpec
+ * @property {() => void | Promise<void>} [onProjectsImported]
  */
 
 const STATUS_LABEL = {
@@ -90,7 +99,7 @@ function generationJobToRecentItem(job) {
         status: job.status,
         detail: formatSpecPath(job.specPath),
         specPath: job.specPath,
-        sessionSlug: undefined,
+        sessionSlug: sessionSlugFromSpecPath(job.specPath),
         analysisJobId: undefined,
         generationJobId: job.id,
         isRunning: job.status === 'pending' || job.status === 'running',
@@ -167,16 +176,19 @@ export function buildRecentProjectItems({ analysisJobs, generationJobs, analysis
 
     const archivedSessions = analysisSessions.filter((session) => !analysisJobs.some((job) => job.scenarioSlug === session.slug));
     for (const session of archivedSessions) {
+        const isBuilt = Boolean(session.hasTestcase && session.hasIdeBasedCoding);
         items.push({
             id: `session-${session.slug}`,
-            kind: session.hasSpec ? 'Saved draft' : 'Uploads',
+            kind: isBuilt ? 'Build' : session.hasSpec ? 'Saved draft' : 'Uploads',
             title: session.scenarioName ?? session.slug,
             when: session.updatedAt,
-            label: session.hasSpec ? 'Draft saved' : 'Uploads only',
-            status: session.hasSpec ? 'succeeded' : 'pending',
-            detail: session.hasSpec
-                ? formatSpecPath(session.specPath ?? session.slug)
-                : `${session.slug}/uploaded`,
+            label: isBuilt ? 'Built' : session.hasSpec ? 'Draft saved' : 'Uploads only',
+            status: isBuilt || session.hasSpec ? 'succeeded' : 'pending',
+            detail: isBuilt
+                ? `${session.slug}/output`
+                : session.hasSpec
+                    ? formatSpecPath(session.specPath ?? session.slug)
+                    : `${session.slug}/uploaded`,
             specPath: session.specPath,
             sessionSlug: session.slug,
             analysisJobId: undefined,
@@ -250,13 +262,61 @@ function RecentProjectCard({ item, selected, deleting, onOpenProject, onDeletePr
 }
 
 /** @param {RecentJobsPanelProps} props */
-export function RecentJobsPanel({ analysisJobs, generationJobs, analysisSessions, openedProjectId, deletingProjectId, loading, error, onOpenProject, onDeleteProject, onBuildFromSpec, onActionError, }) {
+export function RecentJobsPanel({ analysisJobs, generationJobs, analysisSessions, openedProjectId, deletingProjectId, loading, error, onOpenProject, onDeleteProject, onBuildFromSpec, onActionError, onProjectsImported, }) {
     const items = buildRecentProjectItems({ analysisJobs, generationJobs, analysisSessions });
+    const [importing, setImporting] = useState(false);
+    const [importMessage, setImportMessage] = useState(undefined);
+    const [importError, setImportError] = useState(undefined);
+
+    async function handleImportFileChange(event) {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) {
+            return;
+        }
+        setImporting(true);
+        setImportMessage(undefined);
+        setImportError(undefined);
+        try {
+            const result = await apiClient.importAnalysisSessions(file);
+            const importedCount = result.imported?.length ?? 0;
+            const skippedCount = result.skipped?.length ?? 0;
+            const skippedNote = skippedCount > 0 ? ` (${skippedCount} skipped)` : '';
+            setImportMessage(`Imported ${importedCount} project${importedCount === 1 ? '' : 's'}${skippedNote}.`);
+            if (onProjectsImported) {
+                await onProjectsImported();
+            }
+        }
+        catch (importFailure) {
+            const message = importFailure instanceof Error ? importFailure.message : String(importFailure);
+            setImportError(message);
+            onActionError?.(message);
+        }
+        finally {
+            setImporting(false);
+        }
+    }
 
     return (<section className="project-surface recent-projects-section">
       <div className="recent-projects-header">
-        <h2>All Projects</h2>
-        <p className="muted">Open a project to edit files and run dev/tests. Active design/build progress appears on New Design.</p>
+        <div className="recent-projects-header-row">
+          <div>
+            <h2>All Projects</h2>
+            <p className="muted">Open a project to edit files and run dev/tests. Active design/build progress appears on New Design.</p>
+          </div>
+          <label className="project-action-btn project-action-btn-primary scenarios-import-btn">
+            {importing ? 'Importing…' : 'Import projects'}
+            <input className="scenarios-import-input" type="file" accept=".zip,application/zip" disabled={importing} onChange={(event) => {
+                void handleImportFileChange(event);
+            }}/>
+          </label>
+        </div>
+        <p className="muted scenarios-import-hint">
+          To restore local projects after deployment: run <code>npm run pack:scenarios</code> in the backend folder, then upload the zip here.
+          On Render free tier, projects can disappear after the server restarts — add a Persistent Disk in Render to keep them.
+        </p>
+        {importMessage && <p className="success-text">{importMessage}</p>}
+        {importError && <p className="error-text">{importError}</p>}
       </div>
 
       {loading && <p className="muted">Loading recent projects…</p>}

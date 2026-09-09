@@ -19,10 +19,12 @@ import { resolveSessionSlug } from '../utils/sessionSlug.js';
  * @property {(specPath: string) => void} onGenerate
  * @property {(analysisJobId: string) => void} [onCancelDesign]
  * @property {() => void} onClose
+ * @property {number} [fileTreeRefreshToken]
+ * @property {(message: string) => void} [onActionError]
  */
 
 /** @param {OpenedProjectPanelProps} props */
-export function OpenedProjectPanel({ item, analysisJob, generationJob, analysisPollError, generationPollError, generating, compactInitialView = false, onGenerate, onCancelDesign, onClose, }) {
+export function OpenedProjectPanel({ item, analysisJob, generationJob, analysisPollError, generationPollError, generating, compactInitialView = false, onGenerate, onCancelDesign, onClose, fileTreeRefreshToken = 0, onActionError, }) {
     const isDesignActive = analysisJob !== undefined && (analysisJob.status === 'pending' || analysisJob.status === 'running');
     const isBuildActive = generationJob !== undefined && (generationJob.status === 'pending' || generationJob.status === 'running');
     const isJobRunning = isDesignActive || isBuildActive;
@@ -151,9 +153,9 @@ export function OpenedProjectPanel({ item, analysisJob, generationJob, analysisP
                   <StepTracker title="Build steps" items={toStepTrackerItems(displayGenerationJob.steps, displayGenerationJob.logs)}/>
                 </div>
                 <div className="job-layout-main">
-                  <JobStatusPanel job={displayGenerationJob}/>
+                  <JobStatusPanel job={displayGenerationJob} onActionError={onActionError}/>
                 </div>
-              </div>) : (<JobStatusPanel job={displayGenerationJob}/>)) : (isBuildActive ? (<div className="processing-placeholder">
+              </div>) : (<JobStatusPanel job={displayGenerationJob} onActionError={onActionError}/>)) : (isBuildActive ? (<div className="processing-placeholder">
               <span className="spinner"/>
               <p>Starting build — preparing generation pipeline…</p>
             </div>) : null)}
@@ -167,7 +169,7 @@ export function OpenedProjectPanel({ item, analysisJob, generationJob, analysisP
         </div>)}
 
       {sessionSlug && folderOpen && (<div ref={folderPanelRef} className="opened-project-folder-section">
-          <ProjectFileWorkspace sessionSlug={sessionSlug}/>
+          <ProjectFileWorkspace sessionSlug={sessionSlug} preferOutput refreshToken={fileTreeRefreshToken}/>
         </div>)}
     </section>);
 }

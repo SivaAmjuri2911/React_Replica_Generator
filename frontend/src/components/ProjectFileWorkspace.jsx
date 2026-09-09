@@ -40,10 +40,11 @@ function findOutputFilePath(nodes, targetName) {
  * @property {string} sessionSlug
  * @property {boolean} [preferOutput]
  * @property {boolean} [fullPage]
+ * @property {number} [refreshToken]
  */
 
 /** @param {ProjectFileWorkspaceProps} props */
-export function ProjectFileWorkspace({ sessionSlug, preferOutput = false, fullPage = false }) {
+export function ProjectFileWorkspace({ sessionSlug, preferOutput = false, fullPage = false, refreshToken = 0 }) {
     const [selectedPath, setSelectedPath] = useState(undefined);
     const [savedContent, setSavedContent] = useState(undefined);
     const [editorContent, setEditorContent] = useState('');
@@ -59,7 +60,6 @@ export function ProjectFileWorkspace({ sessionSlug, preferOutput = false, fullPa
     const [autoSelected, setAutoSelected] = useState(false);
     const [packageJsonPaths, setPackageJsonPaths] = useState([]);
     const [runTargetDir, setRunTargetDir] = useState(undefined);
-    const [treeRefreshKey, setTreeRefreshKey] = useState(0);
 
     const isDirty = selectedPath !== undefined && !fileBinary && savedContent !== undefined && editorContent !== savedContent;
 
@@ -223,7 +223,7 @@ export function ProjectFileWorkspace({ sessionSlug, preferOutput = false, fullPa
 
     return (<div className={`project-file-workspace ${fullPage ? 'project-file-workspace-page' : 'project-file-workspace-embedded'}`}>
       <aside className="project-file-sidebar">
-        <ScenarioFileExplorer key={treeRefreshKey} sessionSlug={sessionSlug} selectedPath={selectedPath} onSelectFile={selectFile} onTreeLoaded={handleTreeLoaded}/>
+        <ScenarioFileExplorer sessionSlug={sessionSlug} selectedPath={selectedPath} onSelectFile={selectFile} onTreeLoaded={handleTreeLoaded} refreshToken={refreshToken}/>
       </aside>
       <div className="project-file-editor">
         <div className="project-file-tabbar">

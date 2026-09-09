@@ -1,6 +1,10 @@
+import { useState } from 'react';
+import { apiClient } from '../api/client.js';
+
 /**
  * @typedef {object} JobStatusPanelProps
  * @property {import('../types.js').GenerationJob} job
+ * @property {(message: string) => void} [onActionError]
  */
 
 const STATUS_LABEL = {
@@ -22,7 +26,25 @@ function OutputRow({ label, path }) {
     </>);
 }
 /** @param {JobStatusPanelProps} props */
-export function JobStatusPanel({ job }) {
+export function JobStatusPanel({ job, onActionError }) {
+    const [downloading, setDownloading] = useState(false);
+
+    const handleDownload = async () => {
+        if (downloading) {
+            return;
+        }
+        setDownloading(true);
+        try {
+            await apiClient.downloadGenerationZip(job.id, `${job.scenarioName}.zip`);
+        }
+        catch (error) {
+            onActionError?.(error instanceof Error ? error.message : String(error));
+        }
+        finally {
+            setDownloading(false);
+        }
+    };
+
     return (<div className="job-panel">
       <div className="job-header">
         <h2>{job.scenarioName}</h2>
@@ -42,9 +64,10 @@ export function JobStatusPanel({ job }) {
             <dt>Test cases</dt>
             <dd>{job.result.testCases.length}</dd>
           </dl>
-          <a className="download-link download-link-primary" href={`/api/generations/${job.id}/download`} download>
-            Download Replica (.zip)
-          </a>
+          <button type="button" className="download-link download-link-primary" disabled={downloading} onClick={() => void handleDownload()}>
+            {downloading ? 'Preparing download…' : 'Download Replica (.zip)'}
+          </button>
+          <p className="muted build-output-hint">Testcase and IDE JSON live under <code>output/</code> in the project folder — expand that folder after build finishes.</p>
         </div>)}
 
       {job.status === 'failed' && job.failure && (<div className="result-block result-failure">

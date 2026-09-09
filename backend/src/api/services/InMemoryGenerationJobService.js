@@ -7,6 +7,7 @@ import { GenerationError } from '../../domain/errors/GenerationError.js';
 import { reconstructDraftFromSpec } from '../../authoring/reconstructDraftFromSpec.js';
 import { GENERATION_STEP_LABELS } from '../../config/progressLabels.js';
 import { stopDevServersForProjectDir } from '../devServerRegistry.js';
+import { writeGenerationSessionMeta } from './writeGenerationSessionMeta.js';
 import { outputPrefilledCodePath, outputSolutionCodePath } from '../../domain/models/ScenarioSpec.js';
 /**
  * Runs generations in the background inside the same Node process and
@@ -132,6 +133,7 @@ export class InMemoryGenerationJobService {
                 if (!workflowResult.ok) {
                     throw workflowResult.error;
                 }
+                await writeGenerationSessionMeta(specPath, workflowResult.value.generatedProject);
                 this.updateJob(jobId, {
                     status: 'succeeded',
                     finishedAt: new Date().toISOString(),
@@ -142,6 +144,7 @@ export class InMemoryGenerationJobService {
             }
             const pipeline = this.compositionRoot.buildGenerationPipeline(jobLogger);
             const result = await pipeline.run(spec, onProgress);
+            await writeGenerationSessionMeta(specPath, result);
             this.updateJob(jobId, {
                 status: 'succeeded',
                 finishedAt: new Date().toISOString(),

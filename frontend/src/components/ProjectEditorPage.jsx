@@ -10,10 +10,11 @@ import { resolveSessionSlug } from '../utils/sessionSlug.js';
  * @property {(specPath: string) => void} onGenerate
  * @property {boolean} generating
  * @property {(message: string) => void} [onActionError]
+ * @property {number} [fileTreeRefreshToken]
  */
 
 /** @param {ProjectEditorPageProps} props */
-export function ProjectEditorPage({ item, onBack, onGenerate, generating, onActionError }) {
+export function ProjectEditorPage({ item, onBack, onGenerate, generating, onActionError, fileTreeRefreshToken = 0 }) {
     const sessionSlug = resolveSessionSlug(item);
     const [downloading, setDownloading] = useState(false);
 
@@ -56,7 +57,7 @@ export function ProjectEditorPage({ item, onBack, onGenerate, generating, onActi
         </div>
       </header>
 
-      {sessionSlug ? (<ProjectFileWorkspace sessionSlug={sessionSlug} preferOutput fullPage/>) : (<div className="project-editor-empty">
+      {sessionSlug ? (<ProjectFileWorkspace sessionSlug={sessionSlug} preferOutput fullPage refreshToken={fileTreeRefreshToken}/>) : (<div className="project-editor-empty">
           <p className="muted">No project files on disk yet.</p>
           {item.specPath && (<button type="button" className="project-action-btn project-action-btn-primary" disabled={generating} onClick={() => onGenerate(item.specPath)}>
               {generating ? 'Building…' : 'Build project'}

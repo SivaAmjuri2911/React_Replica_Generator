@@ -18,7 +18,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src tests",
-    "migrate:ide-based-coding": "node scripts/migrateIdeBasedCodingPaths.js"
+    "migrate:ide-based-coding": "node scripts/migrateIdeBasedCodingPaths.js",
+    "pack:scenarios": "node scripts/packScenariosForImport.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

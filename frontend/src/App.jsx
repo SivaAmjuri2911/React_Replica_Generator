@@ -10,6 +10,7 @@ import { useJobPolling } from './hooks/useJobPolling.js';
 import { useAnalysisJobPolling } from './hooks/useAnalysisJobPolling.js';
 import { useRecentJobs } from './hooks/useRecentJobs.js';
 import { readStoredAnalysisJobId, readStoredGenerationJobId, storeAnalysisJobId, storeGenerationJobId, } from './utils/jobSession.js';
+import { resolveSessionSlug } from './utils/sessionSlug.js';
 import './App.css';
 
 const HIGHLIGHT_COLORS = {
@@ -39,6 +40,7 @@ export function App() {
     const [deletingProjectId, setDeletingProjectId] = useState(undefined);
     const [pendingDeleteItem, setPendingDeleteItem] = useState(undefined);
     const [activePage, setActivePage] = useState('design');
+    const [fileTreeRefreshToken, setFileTreeRefreshToken] = useState(0);
     const { job, error: pollError } = useJobPolling(activeJobId);
     const { job: analysisJob, error: analysisPollError } = useAnalysisJobPolling(activeAnalysisJobId);
     const { analysisJobs, generationJobs, analysisSessions, loading: recentJobsLoading, error: recentJobsError, refresh: refreshRecentJobs, } = useRecentJobs();
@@ -74,7 +76,15 @@ export function App() {
         if (job && (job.status === 'succeeded' || job.status === 'failed')) {
             setGeneratingSpecPath(undefined);
         }
-    }, [job]);
+        if (job?.status === 'succeeded') {
+            void refreshRecentJobs();
+            setFileTreeRefreshToken((current) => current + 1);
+            const sessionSlug = resolveSessionSlug({ specPath: job.specPath });
+            if (sessionSlug) {
+                setOpenedProjectId(`session-${sessionSlug}`);
+            }
+        }
+    }, [job, refreshRecentJobs]);
     useEffect(() => {
         if (analysisJob && (analysisJob.status === 'succeeded' || analysisJob.status === 'failed')) {
             setAnalyzing(false);
@@ -331,12 +341,12 @@ export function App() {
       </section>)}
 
       {activePage === 'design' && isDesignSessionProject && openedProject && (<div ref={openedProjectPanelRef}>
-          <OpenedProjectPanel compactInitialView={!openedProject.isRunning} item={openedProject} analysisJob={openedProject.isRunning && openedProject.analysisJobId ? analysisJob : undefined} generationJob={openedProject.isRunning && openedProject.generationJobId ? job : undefined} analysisPollError={analysisPollError} generationPollError={pollError} generating={generatingSpecPath !== undefined} onGenerate={handleGenerate} onCancelDesign={handleCancelDesign} onClose={handleCloseProject}/>
+          <OpenedProjectPanel compactInitialView={!openedProject.isRunning} item={openedProject} analysisJob={openedProject.isRunning && openedProject.analysisJobId ? analysisJob : undefined} generationJob={openedProject.isRunning && openedProject.generationJobId ? job : undefined} analysisPollError={analysisPollError} generationPollError={pollError} generating={generatingSpecPath !== undefined} onGenerate={handleGenerate} onCancelDesign={handleCancelDesign} onClose={handleCloseProject} fileTreeRefreshToken={fileTreeRefreshToken} onActionError={setLoadError}/>
         </div>)}
 
-      {activePage === 'projects' && (<RecentJobsPanel analysisJobs={analysisJobs} generationJobs={generationJobs} analysisSessions={analysisSessions} openedProjectId={openedProjectId} deletingProjectId={deletingProjectId} loading={recentJobsLoading} error={recentJobsError} onOpenProject={handleOpenProject} onDeleteProject={handleDeleteProjectRequest} onBuildFromSpec={handleGenerate} onActionError={setLoadError}/>)}
+      {activePage === 'projects' && (<RecentJobsPanel analysisJobs={analysisJobs} generationJobs={generationJobs} analysisSessions={analysisSessions} openedProjectId={openedProjectId} deletingProjectId={deletingProjectId} loading={recentJobsLoading} error={recentJobsError} onOpenProject={handleOpenProject} onDeleteProject={handleDeleteProjectRequest} onBuildFromSpec={handleGenerate} onActionError={setLoadError} onProjectsImported={refreshRecentJobs}/>)}
 
-      {activePage === 'editor' && openedProject && (<ProjectEditorPage item={openedProject} generating={generatingSpecPath !== undefined} onGenerate={handleGenerate} onBack={handleEditorBack} onActionError={setLoadError}/>)}
+      {activePage === 'editor' && openedProject && (<ProjectEditorPage item={openedProject} generating={generatingSpecPath !== undefined} onGenerate={handleGenerate} onBack={handleEditorBack} onActionError={setLoadError} fileTreeRefreshToken={fileTreeRefreshToken}/>)}
     </main>
 
       <ConfirmModal open={pendingDeleteItem !== undefined} title="Delete project?" message={pendingDeleteItem ? `Delete "${pendingDeleteItem.title}"? This removes it from the list and deletes saved files on disk where applicable.` : ''} confirmLabel="Delete" cancelLabel="Cancel" danger loading={deletingProjectId !== undefined} onConfirm={() => void handleDeleteProjectConfirm()} onCancel={handleDeleteProjectCancel}/>

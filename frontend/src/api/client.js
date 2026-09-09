@@ -132,6 +132,11 @@ async function requestJsonWithFormData(path, body) {
  * @property {string|undefined} specPath
  * @property {boolean} hasUploads
  * @property {boolean} hasSpec
+ * @property {boolean} [hasOutput]
+ * @property {boolean} [hasTestcase]
+ * @property {boolean} [hasIdeBasedCoding]
+ * @property {string|undefined} [testcaseRelativePath]
+ * @property {string|undefined} [ideBasedCodingRelativePath]
  * @property {string|undefined} updatedAt
  */
 
@@ -192,12 +197,22 @@ export const apiClient = {
         const { sessions } = await requestJson('/analysis-sessions');
         return sessions;
     },
+    /** @param {File} scenariosZip */
+    async importAnalysisSessions(scenariosZip) {
+        const formData = new FormData();
+        formData.append('scenariosZip', scenariosZip);
+        return requestJsonWithFormData('/analysis-sessions/import', formData);
+    },
     /**
      * @param {string} slug
      * @param {string} [fallbackFilename]
      */
     async downloadSessionZip(slug, fallbackFilename) {
         await downloadFromApi(`/analysis-sessions/${encodeURIComponent(slug)}/download`, fallbackFilename ?? `${slug}.zip`);
+    },
+    /** @param {string} jobId @param {string} [fallbackFilename] */
+    async downloadGenerationZip(jobId, fallbackFilename) {
+        await downloadFromApi(`/generations/${encodeURIComponent(jobId)}/download`, fallbackFilename ?? 'replica.zip');
     },
     /** @param {string} slug */
     async listSessionFileTree(slug) {

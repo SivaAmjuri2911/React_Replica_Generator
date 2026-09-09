@@ -1,12 +1,23 @@
 import path from 'node:path';
 import net from 'node:net';
+import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import { Router } from 'express';
+import multer from 'multer';
 import { AdmZipZipCreationService } from '../../services/archive/AdmZipZipCreationService.js';
+import { ScenariosImportService } from '../../services/scenarios/ScenariosImportService.js';
+import { ScenarioSpecLoader } from '../../config/ScenarioSpecLoader.js';
+import { inspectSessionOutput } from '../services/sessionOutputStatus.js';
 import { migrateLegacyIdeBasedCodingLayout } from '../../config/migrateLegacyIdeBasedCodingLayout.js';
 import { getDevServer, registerDevServer, stopDevServersForProjectDir, unregisterDevServer, } from '../devServerRegistry.js';
 const ANALYSIS_SLUG_PATTERN = /^analysis-[a-z0-9-]+$/i;
+const ZIP_MIME_TYPES = new Set([
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/octet-stream',
+]);
+const SCENARIOS_IMPORT_MAX_BYTES = Number(process.env.SCENARIOS_IMPORT_MAX_BYTES ?? 2 * 1024 * 1024 * 1024);
 const EXCLUDED_DIRECTORY_NAMES = new Set(['node_modules', '.git', 'dist', 'build']);
 const MAX_FILE_BYTES = 512 * 1024;
 const MAX_RUN_OUTPUT_BYTES = 512 * 1024;
@@ -17,8 +28,30 @@ const ALLOWED_RUN_SCRIPTS = new Set(['test', 'dev', 'build', 'lint', 'preview'])
  * Lists analysis-* folders on disk so the UI can show uploads and drafts even
  * after the in-memory job store is cleared by a server restart.
  */
-export function buildAnalysisSessionRoutes(scenariosRoot, analysisJobService, zipCreation = new AdmZipZipCreationService()) {
+function buildScenariosImportUpload(uploadsRoot) {
+    const storage = multer.diskStorage({
+        destination: uploadsRoot,
+        filename: (_request, file, callback) => {
+            callback(null, `${Date.now()}-${Math.random().toString(36).slice(2)}-${file.originalname}`);
+        },
+    });
+    return multer({
+        storage,
+        limits: { fileSize: SCENARIOS_IMPORT_MAX_BYTES },
+        fileFilter: (_request, file, callback) => {
+            if (!file.originalname.toLowerCase().endsWith('.zip') && !ZIP_MIME_TYPES.has(file.mimetype)) {
+                callback(new Error(`"${file.originalname}" is not a .zip file`));
+                return;
+            }
+            callback(null, true);
+        },
+    });
+}
+
+export function buildAnalysisSessionRoutes(scenariosRoot, analysisJobService, uploadsRoot, zipCreation = new AdmZipZipCreationService(), scenariosImportService = new ScenariosImportService()) {
     const router = Router();
+    const importUpload = buildScenariosImportUpload(uploadsRoot);
+    const specLoader = new ScenarioSpecLoader();
 
     router.get('/analysis-sessions', async (_request, response) => {
         try {
@@ -36,18 +69,21 @@ export function buildAnalysisSessionRoutes(scenariosRoot, analysisJobService, zi
                 const hasUploads = await directoryHasEntries(uploadedDir);
                 let scenarioName;
                 let hasSpec = false;
+                /** @type {import('../../domain/models/ScenarioSpec.js').ScenarioSpec|undefined} */
+                let resolvedSpec;
 
                 try {
-                    const raw = await fs.readFile(specPath, 'utf8');
-                    const parsed = JSON.parse(raw);
-                    scenarioName = typeof parsed.scenarioName === 'string' ? parsed.scenarioName : undefined;
+                    resolvedSpec = await specLoader.loadFromFile(specPath);
+                    scenarioName = resolvedSpec.scenarioName;
                     hasSpec = true;
                 }
                 catch {
                     // No spec yet — upload-only or failed early.
                 }
 
-                if (!hasUploads && !hasSpec) {
+                const outputStatus = await inspectSessionOutput(sessionDir, resolvedSpec);
+
+                if (!hasUploads && !hasSpec && !outputStatus.hasOutput) {
                     continue;
                 }
 
@@ -57,6 +93,11 @@ export function buildAnalysisSessionRoutes(scenariosRoot, analysisJobService, zi
                     specPath: hasSpec ? specPath : undefined,
                     hasUploads,
                     hasSpec,
+                    hasOutput: outputStatus.hasOutput,
+                    hasTestcase: outputStatus.hasTestcase,
+                    hasIdeBasedCoding: outputStatus.hasIdeBasedCoding,
+                    testcaseRelativePath: outputStatus.testcaseRelativePath,
+                    ideBasedCodingRelativePath: outputStatus.ideBasedCodingRelativePath,
                     updatedAt: stat?.mtime.toISOString(),
                 });
             }
@@ -66,6 +107,26 @@ export function buildAnalysisSessionRoutes(scenariosRoot, analysisJobService, zi
         }
         catch (error) {
             response.status(500).json({ error: error instanceof Error ? error.message : String(error) });
+        }
+    });
+
+    router.post('/analysis-sessions/import', importUpload.single('scenariosZip'), async (request, response) => {
+        const uploadedFile = request.file;
+        if (!uploadedFile) {
+            response.status(400).json({ error: 'A "scenariosZip" .zip file is required' });
+            return;
+        }
+        const stagingDir = path.join(uploadsRoot, `import-${randomUUID()}`);
+        try {
+            const result = await scenariosImportService.importFromZip(uploadedFile.path, scenariosRoot, stagingDir);
+            response.json(result);
+        }
+        catch (error) {
+            response.status(400).json({ error: error instanceof Error ? error.message : String(error) });
+        }
+        finally {
+            await fs.rm(stagingDir, { recursive: true, force: true }).catch(() => undefined);
+            await fs.rm(uploadedFile.path, { force: true }).catch(() => undefined);
         }
     });
 
