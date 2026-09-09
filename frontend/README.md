@@ -17,21 +17,21 @@ npm install
 npm run dev
 ```
 
-Opens on `http://localhost:5173` (or the next free port). `vite.config.ts` proxies `/api/*`
+Opens on `http://localhost:5173` (or the next free port). `vite.config.js` proxies `/api/*`
 requests to `http://localhost:4000`, where the backend must already be listening.
 
 ## Structure
 
 ```
 src/
-  types.ts                    Plain DTOs mirroring the backend's domain models (GenerationJob, etc.)
-  api/client.ts                 Thin typed fetch wrapper — the only file that knows the API's URL shape
+  types.js                     Plain DTOs mirroring the backend's domain models (GenerationJob, etc.) — documented as JSDoc @typedefs
+  api/client.js                  Thin fetch wrapper — the only file that knows the API's URL shape
   hooks/
-    useJobPolling.ts             Polls a generation job every 1.5s until it reaches succeeded/failed
-    useAnalysisJobPolling.ts     Same, for spec-drafting jobs
+    useJobPolling.js              Polls a generation job every 1.5s until it reaches succeeded/failed
+    useAnalysisJobPolling.js      Same, for spec-drafting jobs
   components/
-    JobStatusPanel.tsx           Status badge, live log panel, result/failure detail
-    AnalyzeForm.tsx              Upload form: 3 project zips + a scenario description
-    AnalysisStatusPanel.tsx      Drafted spec summary + "Generate from this draft"
-  App.tsx                        Wires the above together
+    JobStatusPanel.jsx            Status badge, live log panel, result/failure detail
+    AnalyzeForm.jsx               Upload form: 3 project zips + a scenario description
+    AnalysisStatusPanel.jsx       Drafted spec summary + "Generate from this draft"
+  App.jsx                         Wires the above together
 ```

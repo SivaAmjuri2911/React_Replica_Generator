@@ -1,23 +1,20 @@
-import tseslint from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
+import js from '@eslint/js';
+import globals from 'globals';
 
 export default [
+  js.configs.recommended,
   {
-    files: ['src/**/*.ts', 'tests/**/*.ts'],
+    files: ['src/**/*.js', 'tests/**/*.js'],
     languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        project: './tsconfig.json',
-      },
-    },
-    plugins: {
-      '@typescript-eslint': tseslint,
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: globals.node,
     },
     rules: {
-      ...tseslint.configs.recommended.rules,
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/explicit-function-return-type': 'warn',
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'no-console': 'off',
+      'no-control-regex': 'off',
+      'no-useless-escape': 'off',
     },
   },
 ];

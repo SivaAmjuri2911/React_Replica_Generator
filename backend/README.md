@@ -35,8 +35,11 @@ src/
 
 **Dependency direction**: `cli` → `config` → `pipeline` → `rulesEngine`/`services` → `domain`/`shared`.
 Nothing in `domain` or `shared` imports from any other layer. Every service and rule is defined
-as an interface first; concrete implementations are swapped in only at `CompositionRoot` — so any
-of them can be replaced with a test fake without touching business logic (see `tests/unit/fakes/`).
+as a contract first — plain JavaScript with a JSDoc `@typedef` for the shape, an `@implements`
+tag on each concrete class — and concrete implementations are swapped in only at `CompositionRoot`
+— so any of them can be replaced with a test fake without touching business logic (see
+`tests/unit/fakes/`). This is plain JS throughout (no build/typecheck step); the JSDoc comments
+exist for documentation and editor hints, not enforced compile-time type checking.
 
 ## Adding something new
 
@@ -93,7 +96,6 @@ make this an explicit, deliberate choice per file — not something silently got
 
 ```bash
 npm install
-npm run build
 
 npm run generate -- --spec scenarios/ticket-management/spec.json --log-level debug
 ```
@@ -119,13 +121,13 @@ npm run generate -- --spec scenarios/helpdesk-tickets/spec.json --log-level debu
 **Web UI / `/api/analyses`**: the operator picks a provider (Anthropic, OpenAI, or OpenRouter),
 pastes their own API key for it, and picks a model per request instead of relying on server-side env
 resolution. Pasting/editing the key auto-loads that provider's model list (debounced, see
-`AnalyzeForm.tsx`) — there's no separate "load models" action. `ProviderRoutingScenarioSpecGenerationService`
+`AnalyzeForm.jsx`) — there's no separate "load models" action. `ProviderRoutingScenarioSpecGenerationService`
 dispatches `request.provider` to `ClaudeScenarioSpecGenerationService`, `OpenAiScenarioSpecGenerationService`,
 or `OpenRouterScenarioSpecGenerationService` (OpenRouter is called via the `openai` SDK pointed at its
 OpenAI-compatible endpoint, rather than a fourth bespoke HTTP client), each of which builds a fresh
 SDK client from the request's key when one is supplied — all three implement the same
 `ScenarioSpecGenerationService` interface and are held to the exact same prompt/schema contract
-(`scenarioSpecDraftContract.ts`), so which provider drafted a spec never changes what a valid draft
+(`scenarioSpecDraftContract.js`), so which provider drafted a spec never changes what a valid draft
 looks like. Not every model OpenRouter routes to honors structured JSON output the same way Claude's
 and OpenAI's own APIs do — an incompatible model surfaces as a clear parse/schema error rather than a
 silent bad draft. The key is never logged or persisted server-side; it only lives in the request body
@@ -172,7 +174,7 @@ Then, in `../frontend`: `npm install && npm run dev`, and open the printed URL.
 
 `/api/analyses` never requires a `testcase` upload — see "Drafting a spec" below for why.
 
-Jobs run in-memory, in-process (`src/api/services/InMemoryGenerationJobService.ts`) — adequate for
+Jobs run in-memory, in-process (`src/api/services/InMemoryGenerationJobService.js`) — adequate for
 a single-operator tool; would need a persistent/queued store to survive a server restart or support
 concurrent operators, which is out of scope until that's an actual requirement.
 
@@ -194,7 +196,6 @@ re-run — nothing partially-generated is ever reported as a success.
 
 ```bash
 npm test          # unit tests (tests/unit/**) — fast, no disk/network access, uses fakes
-npm run typecheck
 npm run lint
 ```
 
