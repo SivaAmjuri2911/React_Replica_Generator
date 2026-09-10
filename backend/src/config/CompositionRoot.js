@@ -71,7 +71,7 @@ export class CompositionRoot {
             .register(new RouteRenameConsistencyRule())
             .register(new IdeBasedCodingJsonSyncRule(testCaseDerivation));
         const steps = [
-            new ScaffoldPrefilledCodeStep(fileSystem, textTransformation, logger.child('ScaffoldPrefilledCodeStep')),
+            new ScaffoldPrefilledCodeStep(fileSystem, logger.child('ScaffoldPrefilledCodeStep')),
             new TransformSolutionCodeStep(fileSystem, textTransformation, logger.child('TransformSolutionCodeStep')),
             new SyncPrefilledSeedDataStep(fileSystem, logger.child('SyncPrefilledSeedDataStep')),
             new ValidateJavaScriptSyntaxStep(fileSystem),

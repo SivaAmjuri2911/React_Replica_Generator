@@ -2,15 +2,11 @@ import path from 'node:path';
 import { outputPrefilledCodePath, packageName } from '../../domain/models/ScenarioSpec.js';
 import { setPackageJsonName } from './packageJsonUtils.js';
 import { FileSystemError } from '../../domain/errors/GenerationError.js';
-import { isTestFileRelativePath, normalizeTestFileMarkers } from '../../services/scenarioSpecGeneration/baseTestFileUtils.js';
 
 /**
- * prefilled_code starts from the uploaded starter, then applies file renames
- * and mechanical text/color replacements only for paths that actually exist
- * in the starter (prefilled is often a minimal skeleton without solution-only
- * components). Manually-authored solution overlays are NOT copied here —
- * SyncPrefilledSeedDataStep later syncs seed-data arrays when the starter
- * already had them.
+ * prefilled_code stays a byte-for-byte copy of the uploaded starter except for
+ * package.json/package-lock.json "name". SyncPrefilledSeedDataStep later
+ * replaces leading seed-data arrays when the starter already had them.
  */
 /**
  * @implements {PipelineStep}
@@ -18,11 +14,9 @@ import { isTestFileRelativePath, normalizeTestFileMarkers } from '../../services
 export class ScaffoldPrefilledCodeStep {
     name = 'ScaffoldPrefilledCodeStep';
     fileSystem;
-    textTransformation;
     logger;
-    constructor(fileSystem, textTransformation, logger) {
+    constructor(fileSystem, logger) {
         this.fileSystem = fileSystem;
-        this.textTransformation = textTransformation;
         this.logger = logger;
     }
     async execute(context) {
@@ -38,41 +32,6 @@ export class ScaffoldPrefilledCodeStep {
         const copyResult = await this.fileSystem.copyDirectory(spec.paths.basePrefilledCode, destination);
         if (!copyResult.ok) {
             throw copyResult.error;
-        }
-        for (const rename of spec.fileRenames) {
-            const sourcePath = path.join(destination, rename.fromRelativePath);
-            if (!(await this.fileSystem.exists(sourcePath))) {
-                this.logger.debug(`Skipping prefilled file rename — source missing: ${rename.fromRelativePath}`);
-                continue;
-            }
-            const moveResult = await this.fileSystem.moveFile(
-                sourcePath,
-                path.join(destination, rename.toRelativePath),
-            );
-            if (!moveResult.ok) {
-                throw moveResult.error;
-            }
-        }
-        const colorReplacements = spec.colorSwaps.map((swap) => ({ from: swap.fromHex, to: swap.toHex }));
-        for (const relativePath of spec.transformableRelativePaths) {
-            const filePath = path.join(destination, relativePath);
-            if (!(await this.fileSystem.exists(filePath))) {
-                continue;
-            }
-            this.logger.debug(`Applying scenario replacements to prefilled file: ${relativePath}`);
-            const contentResult = await this.fileSystem.readFile(filePath);
-            if (!contentResult.ok) {
-                throw contentResult.error;
-            }
-            const renamed = this.textTransformation.applyReplacements(contentResult.value, spec.textReplacements);
-            let transformed = this.textTransformation.applySimultaneousReplacements(renamed, colorReplacements);
-            if (isTestFileRelativePath(relativePath)) {
-                transformed = normalizeTestFileMarkers(transformed, spec.testPrefix);
-            }
-            const writeResult = await this.fileSystem.writeFile(filePath, transformed);
-            if (!writeResult.ok) {
-                throw writeResult.error;
-            }
         }
         const expectedName = packageName(spec);
         await this.renamePackageIfPresent(path.join(destination, 'package.json'), expectedName);
