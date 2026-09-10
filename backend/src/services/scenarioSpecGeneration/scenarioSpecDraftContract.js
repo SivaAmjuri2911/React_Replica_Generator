@@ -55,7 +55,10 @@ Follow these rules for the files you write:
 
 1. ${TEST_FILE_PRESERVATION_RULE}
 
-2. SEED/SAMPLE DATA FILES — regenerate with new records for the new scenario domain. Never wire seed data into component imports unless the base project did.
+2. SEED/SAMPLE DATA FILES — any file with a top-level "const name = [{...}]" block MUST be fully
+   rewritten with new records for the new scenario domain. Never put such files in
+   transformableRelativePaths — only manuallyAuthoredFiles. Never wire seed data into component
+   imports unless the base project did.
 
 3. LINKS/ASSETS —
 ${SEED_DATA_IMAGE_URL_RULE}
@@ -118,9 +121,12 @@ Follow these rules exactly (they were learned the hard way, from real generation
 
 4. ${TEST_FILE_PRESERVATION_RULE}
 
-5. SEED/SAMPLE DATA FILES (e.g. sampleData.js) — regenerate with new records for the new scenario,
-   as a manually-authored file. This data is seed-only: never wire it into component imports/logic
-   even if the base project didn't either.
+5. SEED/SAMPLE DATA FILES (e.g. App.jsx or sampleData.js with "const items = [{...}]") — ALWAYS
+   list in manuallyAuthoredFiles / manuallyAuthoredRelativePaths, NEVER in transformableRelativePaths.
+   textReplacements only swap literal tokens — they CANNOT regenerate record objects (titles,
+   artists, prices, image URLs). You must rewrite the full seed array with new domain-appropriate
+   records. This data is seed-only: never wire it into component imports/logic even if the base
+   project didn't either.
 
 6. LINKS/ASSETS —
 ${SEED_DATA_IMAGE_URL_RULE}

@@ -20,6 +20,11 @@ describe('scenarioSpecDraftContract', () => {
         expect(SCENARIO_SPEC_DRAFT_SYSTEM_PROMPT).toContain('STATIC UI ASSETS');
     });
 
+    it('forbids putting seed-data arrays on transformable paths', () => {
+        expect(SCENARIO_SPEC_DRAFT_SYSTEM_PROMPT).toContain('NEVER in transformableRelativePaths');
+        expect(SCENARIO_SPEC_MANUAL_FILES_SYSTEM_PROMPT).toContain('Never put such files in');
+    });
+
     it('requires test files to stay on the transformable mechanical path', () => {
         expect(TEST_FILE_PRESERVATION_RULE).toContain('NEVER manually author');
         expect(TEST_FILE_PRESERVATION_RULE).toContain('transformableRelativePaths only');

@@ -10,7 +10,7 @@ import {
     scenarioSpecDraftSchema,
     scenarioSpecStructureDraftSchema,
 } from './scenarioSpecDraftContract.js';
-import { enforceDeterministicTestFilesOnStructure } from './baseTestFileUtils.js';
+import { enforceDeterministicTestFilesOnStructure, enforceSeedDataFilesOnStructure } from './baseTestFileUtils.js';
 
 export const PHASED_DRAFT_MIN_FILE_COUNT = 14;
 export const PHASED_DRAFT_MIN_TOTAL_CHARS = 50_000;
@@ -149,6 +149,7 @@ export async function generatePhasedScenarioSpecDraft(request, invokeStructured,
         request,
         scenarioSpecStructureDraftSchema.parse(structureResult.value),
     );
+    structure = enforceSeedDataFilesOnStructure(request, structure);
     logger.info(`${providerLabel}: received phased structure draft`, {
         scenarioName: structure.scenarioName,
         transformableFileCount: structure.transformableRelativePaths.length,

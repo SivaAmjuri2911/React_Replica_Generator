@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
     enforceDeterministicTestFilesOnStructure,
+    enforceSeedDataFilesOnStructure,
     extractBaseTestPrefix,
+    fileContainsLeadingSeedDataArray,
     finalizeScenarioSpecDraft,
     normalizeTestFileMarkers,
 } from '../../../src/services/scenarioSpecGeneration/baseTestFileUtils.js';
@@ -70,5 +72,67 @@ describe('baseTestFileUtils', () => {
         expect(structure.testPrefix).toBe('RJSCED18BN');
         expect(structure.transformableRelativePaths).toContain('src/__tests__/Rental.test.jsx');
         expect(structure.manuallyAuthoredRelativePaths).toEqual(['readme.md']);
+    });
+
+    it('detects leading seed-data arrays after imports', () => {
+        expect(fileContainsLeadingSeedDataArray(`import './App.css';
+
+const articles = [{ id: '1' }];
+`)).toBe(true);
+        expect(fileContainsLeadingSeedDataArray('const App = () => null;\n')).toBe(false);
+    });
+
+    it('moves seed-data files off transformable paths during structure finalize', () => {
+        const structure = enforceSeedDataFilesOnStructure(
+            {
+                baseSolutionCodeFiles: [{
+                    relativePath: 'src/App.jsx',
+                    contents: `import './App.css';
+
+const articles = [{ id: '1', title: 'Daily News' }];
+export default function App() { return null; }
+`,
+                }],
+                usedTestPrefixes: [],
+            },
+            {
+                scenarioName: 'vinyl-record-store',
+                outputFolderBaseName: 'VinylRecordStore',
+                testPrefix: 'VNYL',
+                textReplacements: [{ from: 'articles', to: 'records' }],
+                fileRenames: [],
+                colorSwaps: [],
+                transformableRelativePaths: ['src/App.jsx', 'src/App.css'],
+                manuallyAuthoredRelativePaths: ['src/components/HomePage/index.jsx'],
+            },
+        );
+
+        expect(structure.transformableRelativePaths).toEqual(['src/App.css']);
+        expect(structure.manuallyAuthoredRelativePaths).toEqual([
+            'src/components/HomePage/index.jsx',
+            'src/App.jsx',
+        ]);
+    });
+
+    it('rejects finalized drafts that leave seed-data files transformable-only', () => {
+        expect(() => finalizeScenarioSpecDraft(
+            {
+                baseSolutionCodeFiles: [{
+                    relativePath: 'src/App.jsx',
+                    contents: `const articles = [{ id: '1' }];\n`,
+                }],
+                usedTestPrefixes: [],
+            },
+            {
+                scenarioName: 'vinyl-record-store',
+                outputFolderBaseName: 'VinylRecordStore',
+                testPrefix: 'VNYL',
+                textReplacements: [],
+                fileRenames: [],
+                colorSwaps: [],
+                transformableRelativePaths: ['src/App.jsx'],
+                manuallyAuthoredFiles: [],
+            },
+        )).toThrow(/Seed-data files must be manually authored/);
     });
 });
