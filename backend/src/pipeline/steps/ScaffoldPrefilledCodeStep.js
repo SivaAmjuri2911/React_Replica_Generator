@@ -5,8 +5,7 @@ import { FileSystemError } from '../../domain/errors/GenerationError.js';
 
 /**
  * prefilled_code stays a byte-for-byte copy of the uploaded starter except for
- * package.json/package-lock.json "name". SyncPrefilledSeedDataStep later
- * replaces leading seed-data arrays when the starter already had them.
+ * package.json/package-lock.json "name". No solution_code content is copied in.
  */
 /**
  * @implements {PipelineStep}
