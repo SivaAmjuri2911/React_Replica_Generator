@@ -161,6 +161,106 @@ export function resolveOpenedProject(openedProjectId, recentProjectItems, analys
     return undefined;
 }
 
+/**
+ * @param {readonly RecentProjectItem[]} group
+ * @param {string} slug
+ * @returns {RecentProjectItem}
+ */
+function mergeSessionProjectGroup(slug, group) {
+    const running = group.find((item) => item.isRunning);
+    if (running) {
+        return running;
+    }
+
+    const analysisItem = group.find((item) => item.analysisJobId);
+    const buildItem = group.find((item) => item.generationJobId);
+    const sessionItem = group.find((item) => item.id === `session-${slug}`);
+    const isBuilt = buildItem?.status === 'succeeded' || sessionItem?.kind === 'Build';
+    const latestWhen = group
+        .map((item) => item.when ?? '')
+        .sort((a, b) => b.localeCompare(a))[0] || undefined;
+
+    if (isBuilt) {
+        return {
+            id: `session-${slug}`,
+            kind: 'Build',
+            title: buildItem?.title ?? sessionItem?.title ?? analysisItem?.title ?? slug,
+            when: latestWhen,
+            label: 'Built',
+            status: 'succeeded',
+            detail: sessionItem?.detail ?? buildItem?.detail ?? `${slug}/output`,
+            specPath: buildItem?.specPath ?? sessionItem?.specPath ?? analysisItem?.specPath,
+            sessionSlug: slug,
+            analysisJobId: undefined,
+            generationJobId: undefined,
+            isRunning: false,
+        };
+    }
+
+    if (buildItem?.status === 'failed') {
+        return {
+            id: `session-${slug}`,
+            kind: 'Build',
+            title: buildItem.title,
+            when: latestWhen,
+            label: STATUS_LABEL.failed,
+            status: 'failed',
+            detail: buildItem.detail,
+            specPath: buildItem.specPath,
+            sessionSlug: slug,
+            analysisJobId: undefined,
+            generationJobId: undefined,
+            isRunning: false,
+        };
+    }
+
+    if (analysisItem) {
+        return {
+            id: `session-${slug}`,
+            kind: analysisItem.status === 'succeeded' ? 'Saved draft' : 'Design',
+            title: analysisItem.title,
+            when: latestWhen,
+            label: analysisItem.label,
+            status: analysisItem.status,
+            detail: analysisItem.detail,
+            specPath: analysisItem.specPath,
+            sessionSlug: slug,
+            analysisJobId: undefined,
+            generationJobId: undefined,
+            isRunning: false,
+        };
+    }
+
+    return sessionItem ?? group[0];
+}
+
+/** @param {readonly RecentProjectItem[]} items */
+function mergeProjectItemsBySession(items) {
+    /** @type {Map<string, RecentProjectItem[]>} */
+    const groups = new Map();
+    /** @type {RecentProjectItem[]} */
+    const ungrouped = [];
+
+    for (const item of items) {
+        const slug = resolveSessionSlug(item);
+        if (!slug) {
+            ungrouped.push(item);
+            continue;
+        }
+        const group = groups.get(slug) ?? [];
+        group.push(item);
+        groups.set(slug, group);
+    }
+
+    /** @type {RecentProjectItem[]} */
+    const merged = [];
+    for (const [slug, group] of groups) {
+        merged.push(mergeSessionProjectGroup(slug, group));
+    }
+    merged.push(...ungrouped);
+    return merged.sort((a, b) => (b.when ?? '').localeCompare(a.when ?? ''));
+}
+
 /** @param {RecentJobsPanelProps} props */
 export function buildRecentProjectItems({ analysisJobs, generationJobs, analysisSessions, }) {
     /** @type {RecentProjectItem[]} */
@@ -174,7 +274,11 @@ export function buildRecentProjectItems({ analysisJobs, generationJobs, analysis
         items.push(generationJobToRecentItem(job));
     }
 
-    const archivedSessions = analysisSessions.filter((session) => !analysisJobs.some((job) => job.scenarioSlug === session.slug));
+    const coveredSlugs = new Set([
+        ...analysisJobs.map((job) => job.scenarioSlug),
+        ...generationJobs.map((job) => sessionSlugFromSpecPath(job.specPath)).filter(Boolean),
+    ]);
+    const archivedSessions = analysisSessions.filter((session) => !coveredSlugs.has(session.slug));
     for (const session of archivedSessions) {
         const isBuilt = Boolean(session.hasTestcase && session.hasIdeBasedCoding);
         items.push({
@@ -197,7 +301,7 @@ export function buildRecentProjectItems({ analysisJobs, generationJobs, analysis
         });
     }
 
-    return items.sort((a, b) => (b.when ?? '').localeCompare(a.when ?? ''));
+    return mergeProjectItemsBySession(items);
 }
 
 /**
