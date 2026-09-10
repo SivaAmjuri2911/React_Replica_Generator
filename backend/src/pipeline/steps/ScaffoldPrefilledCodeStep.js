@@ -5,11 +5,12 @@ import { FileSystemError } from '../../domain/errors/GenerationError.js';
 import { isTestFileRelativePath, normalizeTestFileMarkers } from '../../services/scenarioSpecGeneration/baseTestFileUtils.js';
 
 /**
- * prefilled_code starts from the uploaded starter, then receives the same
- * file renames and mechanical text/color replacements as solution_code for
- * any transformable paths that exist in the starter. Manually-authored
- * solution overlays are NOT copied here — SyncPrefilledSeedDataStep later
- * syncs only the seed-data arrays when the starter already had them.
+ * prefilled_code starts from the uploaded starter, then applies file renames
+ * and mechanical text/color replacements only for paths that actually exist
+ * in the starter (prefilled is often a minimal skeleton without solution-only
+ * components). Manually-authored solution overlays are NOT copied here —
+ * SyncPrefilledSeedDataStep later syncs seed-data arrays when the starter
+ * already had them.
  */
 /**
  * @implements {PipelineStep}
@@ -39,8 +40,13 @@ export class ScaffoldPrefilledCodeStep {
             throw copyResult.error;
         }
         for (const rename of spec.fileRenames) {
+            const sourcePath = path.join(destination, rename.fromRelativePath);
+            if (!(await this.fileSystem.exists(sourcePath))) {
+                this.logger.debug(`Skipping prefilled file rename — source missing: ${rename.fromRelativePath}`);
+                continue;
+            }
             const moveResult = await this.fileSystem.moveFile(
-                path.join(destination, rename.fromRelativePath),
+                sourcePath,
                 path.join(destination, rename.toRelativePath),
             );
             if (!moveResult.ok) {
