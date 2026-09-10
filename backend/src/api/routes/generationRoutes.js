@@ -85,18 +85,17 @@ export function buildGenerationRoutes(jobService, zipCreation = new AdmZipZipCre
             response.status(status).json({ error: message });
         }
     });
-    router.get('/generations/:jobId/download', async (request, response) => {
-        const job = jobService.getJob(request.params.jobId);
-        if (!job) {
-            response.status(404).json({ error: `No job found with id "${request.params.jobId}"` });
-            return;
-        }
-        if (job.status !== 'succeeded' || !job.result) {
-            response.status(400).json({ error: `Job "${request.params.jobId}" has not succeeded yet` });
+    // Must be registered before /generations/:jobId/download — otherwise "output" is
+    // captured as :jobId and disk-based downloads return "No job found with id output".
+    router.get('/generations/output/download', async (request, response) => {
+        const specPath = typeof request.query.specPath === 'string' ? request.query.specPath : undefined;
+        if (!specPath || specPath.trim().length === 0) {
+            response.status(400).json({ error: '"specPath" query parameter is required' });
             return;
         }
         try {
-            const built = await buildOutputDeliverableZip(zipCreation, outputDeliverablePathsFromResult(job.result));
+            const spec = await specLoader.loadFromFile(specPath);
+            const built = await buildOutputDeliverableZip(zipCreation, outputDeliverablePathsFromSpec(spec));
             if ('error' in built) {
                 response.status(500).json({ error: built.error });
                 return;
@@ -110,15 +109,18 @@ export function buildGenerationRoutes(jobService, zipCreation = new AdmZipZipCre
         }
     });
 
-    router.get('/generations/output/download', async (request, response) => {
-        const specPath = typeof request.query.specPath === 'string' ? request.query.specPath : undefined;
-        if (!specPath || specPath.trim().length === 0) {
-            response.status(400).json({ error: '"specPath" query parameter is required' });
+    router.get('/generations/:jobId/download', async (request, response) => {
+        const job = jobService.getJob(request.params.jobId);
+        if (!job) {
+            response.status(404).json({ error: `No job found with id "${request.params.jobId}"` });
+            return;
+        }
+        if (job.status !== 'succeeded' || !job.result) {
+            response.status(400).json({ error: `Job "${request.params.jobId}" has not succeeded yet` });
             return;
         }
         try {
-            const spec = await specLoader.loadFromFile(specPath);
-            const built = await buildOutputDeliverableZip(zipCreation, outputDeliverablePathsFromSpec(spec));
+            const built = await buildOutputDeliverableZip(zipCreation, outputDeliverablePathsFromResult(job.result));
             if ('error' in built) {
                 response.status(500).json({ error: built.error });
                 return;

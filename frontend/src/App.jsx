@@ -46,7 +46,6 @@ export function App() {
     const { analysisJobs, generationJobs, analysisSessions, loading: recentJobsLoading, error: recentJobsError, refresh: refreshRecentJobs, } = useRecentJobs();
 
     const openedProjectPanelRef = useRef(null);
-    const autoDownloadedJobIdRef = useRef(undefined);
     const recentProjectItems = useMemo(() => buildRecentProjectItems({ analysisJobs, generationJobs, analysisSessions }), [analysisJobs, generationJobs, analysisSessions]);
     const openedProject = useMemo(() => resolveOpenedProject(openedProjectId, recentProjectItems, analysisJob, job), [openedProjectId, recentProjectItems, analysisJob, job]);
     const hasActiveJob = (analysisJob?.status === 'pending' || analysisJob?.status === 'running')
@@ -83,12 +82,6 @@ export function App() {
             const sessionSlug = resolveSessionSlug({ specPath: job.specPath });
             if (sessionSlug) {
                 setOpenedProjectId(`session-${sessionSlug}`);
-            }
-            if (autoDownloadedJobIdRef.current !== job.id) {
-                autoDownloadedJobIdRef.current = job.id;
-                void apiClient.downloadGenerationZip(job.id, `${job.scenarioName}.zip`).catch((error) => {
-                    setLoadError(error instanceof Error ? error.message : String(error));
-                });
             }
         }
     }, [job, refreshRecentJobs]);

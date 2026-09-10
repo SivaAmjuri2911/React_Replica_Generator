@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiClient } from '../api/client.js';
 import { AnalysisStatusPanel } from './AnalysisStatusPanel.jsx';
 import { JobStatusPanel } from './JobStatusPanel.jsx';
+import { ReplicaSuccessDownload } from './ReplicaSuccessDownload.jsx';
 import { ProjectFileWorkspace } from './ProjectFileWorkspace.jsx';
 import { StepTracker } from './StepTracker.jsx';
 import { toStepTrackerItems } from '../utils/stepProgress.js';
@@ -62,6 +63,9 @@ export function OpenedProjectPanel({ item, analysisJob, generationJob, analysisP
     const displayGenerationJob = isBuildActive ? generationJob : loadedGenerationJob;
     const hasJobHistory = Boolean(item.analysisJobId || item.generationJobId);
     const showJobDetails = detailsOpen && (isJobRunning || displayAnalysisJob || displayGenerationJob || loadingDetails);
+    const buildSucceeded = displayGenerationJob?.status === 'succeeded' && Boolean(displayGenerationJob.result);
+    const isBuiltOnDisk = item.kind === 'Build' && Boolean(item.specPath) && !isJobRunning;
+    const showSuccessDownload = buildSucceeded || isBuiltOnDisk;
 
     const handleToggleDetails = useCallback(async () => {
         if (detailsOpen) {
@@ -124,6 +128,8 @@ export function OpenedProjectPanel({ item, analysisJob, generationJob, analysisP
           </button>
         </div>
       </div>
+
+      {showSuccessDownload && (<ReplicaSuccessDownload scenarioName={displayGenerationJob?.scenarioName ?? item.title} jobId={buildSucceeded ? displayGenerationJob?.id : undefined} specPath={item.specPath} onActionError={onActionError}/>)}
 
       {compactInitialView && !detailsOpen && !isJobRunning && (<p className="opened-project-compact-hint muted">
           Use <strong>Open folder</strong> to edit files and run dev/tests. Use <strong>View details</strong> for build logs.
