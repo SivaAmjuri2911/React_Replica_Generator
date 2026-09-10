@@ -8,6 +8,7 @@
 export const GENERATION_STEP_LABELS = [
     { name: 'ScaffoldPrefilledCodeStep', label: 'Setting up your starter project' },
     { name: 'TransformSolutionCodeStep', label: 'Rewriting your solution code' },
+    { name: 'SyncPrefilledSeedDataStep', label: 'Syncing starter seed data with the solution' },
     { name: 'ValidateJavaScriptSyntaxStep', label: 'Checking the code compiles cleanly' },
     { name: 'ValidateImportResolutionStep', label: 'Checking every file import resolves' },
     { name: 'ValidateSolutionTestsStep', label: "Running the solution's tests" },

@@ -13,6 +13,7 @@ import { NoPlaceholderLinksRule } from '../rulesEngine/rules/NoPlaceholderLinksR
 import { RouteRenameConsistencyRule } from '../rulesEngine/rules/RouteRenameConsistencyRule.js';
 import { IdeBasedCodingJsonSyncRule } from '../rulesEngine/rules/IdeBasedCodingJsonSyncRule.js';
 import { ScaffoldPrefilledCodeStep } from '../pipeline/steps/ScaffoldPrefilledCodeStep.js';
+import { SyncPrefilledSeedDataStep } from '../pipeline/steps/SyncPrefilledSeedDataStep.js';
 import { TransformSolutionCodeStep } from '../pipeline/steps/TransformSolutionCodeStep.js';
 import { ValidateJavaScriptSyntaxStep } from '../pipeline/steps/ValidateJavaScriptSyntaxStep.js';
 import { ValidateImportResolutionStep } from '../pipeline/steps/ValidateImportResolutionStep.js';
@@ -70,8 +71,9 @@ export class CompositionRoot {
             .register(new RouteRenameConsistencyRule())
             .register(new IdeBasedCodingJsonSyncRule(testCaseDerivation));
         const steps = [
-            new ScaffoldPrefilledCodeStep(fileSystem, logger.child('ScaffoldPrefilledCodeStep')),
+            new ScaffoldPrefilledCodeStep(fileSystem, textTransformation, logger.child('ScaffoldPrefilledCodeStep')),
             new TransformSolutionCodeStep(fileSystem, textTransformation, logger.child('TransformSolutionCodeStep')),
+            new SyncPrefilledSeedDataStep(fileSystem, logger.child('SyncPrefilledSeedDataStep')),
             new ValidateJavaScriptSyntaxStep(fileSystem),
             new ValidateImportResolutionStep(fileSystem),
             new ValidateSolutionTestsStep(fileSystem, testRunner),
