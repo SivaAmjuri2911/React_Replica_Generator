@@ -12,6 +12,7 @@ import { inspectSessionOutput } from '../services/sessionOutputStatus.js';
 import { buildOutputDeliverableZip, outputDeliverablePathsFromSpec, } from '../../services/archive/buildOutputDeliverableZip.js';
 import { migrateLegacyIdeBasedCodingLayout } from '../../config/migrateLegacyIdeBasedCodingLayout.js';
 import { getDevServer, registerDevServer, stopDevServersForProjectDir, unregisterDevServer, } from '../devServerRegistry.js';
+import { writeDevPreviewViteConfig } from '../devPreviewViteConfig.js';
 import { buildDevPreviewPublicPath, buildDevPreviewPublicUrl, isDeployedApi, } from '../publicApiBaseUrl.js';
 const ANALYSIS_SLUG_PATTERN = /^analysis-[a-z0-9-]+$/i;
 const ZIP_MIME_TYPES = new Set([
@@ -649,10 +650,13 @@ async function startDevServer(projectDir, sessionSlug) {
     if (isDeployedApi() && sessionSlug) {
         const previewBase = `${buildDevPreviewPublicPath(sessionSlug)}/`;
         const publicOrigin = buildDevPreviewPublicUrl(sessionSlug)?.replace(/\/$/, '') ?? '';
-        viteArgs += ` --base ${previewBase}`;
-        if (publicOrigin) {
-            viteArgs += ` --origin ${publicOrigin}`;
-        }
+        await writeDevPreviewViteConfig(projectDir, {
+            base: previewBase,
+            origin: publicOrigin || undefined,
+            host: '127.0.0.1',
+            port,
+        });
+        viteArgs += ` --config .replica-dev-preview.mjs`;
     }
     const command = `${npmCommand} run dev -- ${viteArgs}`;
     const child = spawnShellProcess(command, projectDir, { detached: false, stdioMode: 'pipe' });
