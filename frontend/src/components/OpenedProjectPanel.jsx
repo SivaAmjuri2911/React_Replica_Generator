@@ -59,8 +59,12 @@ export function OpenedProjectPanel({ item, analysisJob, generationJob, analysisP
         folderPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }, [folderOpen]);
 
-    const displayAnalysisJob = isDesignActive ? analysisJob : loadedAnalysisJob;
-    const displayGenerationJob = isBuildActive ? generationJob : loadedGenerationJob;
+    const displayAnalysisJob = isDesignActive
+        ? analysisJob
+        : (loadedAnalysisJob ?? (analysisJob && (analysisJob.status === 'succeeded' || analysisJob.status === 'failed') ? analysisJob : undefined));
+    const displayGenerationJob = isBuildActive
+        ? generationJob
+        : (loadedGenerationJob ?? (generationJob && (generationJob.status === 'succeeded' || generationJob.status === 'failed') ? generationJob : undefined));
     const hasJobHistory = Boolean(item.analysisJobId || item.generationJobId);
     const showJobDetails = detailsOpen && (isJobRunning || displayAnalysisJob || displayGenerationJob || loadingDetails);
     const buildSucceeded = displayGenerationJob?.status === 'succeeded' && Boolean(displayGenerationJob.result);

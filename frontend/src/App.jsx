@@ -10,7 +10,6 @@ import { useJobPolling } from './hooks/useJobPolling.js';
 import { useAnalysisJobPolling } from './hooks/useAnalysisJobPolling.js';
 import { useRecentJobs } from './hooks/useRecentJobs.js';
 import { readStoredAnalysisJobId, readStoredGenerationJobId, storeAnalysisJobId, storeGenerationJobId, } from './utils/jobSession.js';
-import { resolveSessionSlug } from './utils/sessionSlug.js';
 import './App.css';
 
 const HIGHLIGHT_COLORS = {
@@ -79,10 +78,7 @@ export function App() {
         if (job?.status === 'succeeded') {
             void refreshRecentJobs();
             setFileTreeRefreshToken((current) => current + 1);
-            const sessionSlug = resolveSessionSlug({ specPath: job.specPath });
-            if (sessionSlug) {
-                setOpenedProjectId(`session-${sessionSlug}`);
-            }
+            // Stay on build-{jobId} so OpenedProjectPanel keeps showing the manual download banner.
         }
     }, [job, refreshRecentJobs]);
     useEffect(() => {
