@@ -36,7 +36,7 @@ export async function requestOpenAiStructuredDraft(params) {
         allowJsonRecovery = false,
     } = params;
 
-    try {
+    const tryDraftRequest = async (includeResponseFormat) => {
         const { content, refusal, finishReason, maxCompletionTokensUsed, wasReducedForAffordability } = await streamChatCompletion(client, {
             model: modelId,
             max_completion_tokens: MAX_OUTPUT_TOKENS,
@@ -44,7 +44,7 @@ export async function requestOpenAiStructuredDraft(params) {
                 { role: 'system', content: systemPrompt },
                 { role: 'user', content: userPrompt },
             ],
-            response_format: zodResponseFormat(schema, schemaName),
+            ...(includeResponseFormat ? { response_format: zodResponseFormat(schema, schemaName) } : {}),
         }, logger);
 
         if (refusal) {
@@ -85,11 +85,43 @@ export async function requestOpenAiStructuredDraft(params) {
             }));
         }
         return ok(validation.data);
+    };
+
+    try {
+        return await tryDraftRequest(true);
     }
     catch (cause) {
+        if (shouldRetryWithoutStructuredFormat(cause)) {
+            logger.warn(`${providerLabel}: ${phaseLabel} rejected structured output — retrying without response_format`, {
+                cause: formatErrorMessage(cause),
+            });
+            try {
+                return await tryDraftRequest(false);
+            }
+            catch (retryCause) {
+                cause = retryCause;
+            }
+        }
+
         if (cause instanceof OpenAI.AuthenticationError) {
             return err(new ConfigurationError(`The ${providerLabel} API key was rejected — check it and try again`, { cause: cause.message }));
         }
-        return err(new ConfigurationError(`${providerLabel} ${phaseLabel} request failed`, { cause: String(cause) }));
+        const errorMessage = formatErrorMessage(cause);
+        return err(new ConfigurationError(`${providerLabel} ${phaseLabel} request failed${errorMessage ? `: ${errorMessage}` : ''}`, { cause: errorMessage }));
     }
+}
+
+function formatErrorMessage(cause) {
+    if (cause instanceof Error) {
+        return cause.message;
+    }
+    return String(cause);
+}
+
+function shouldRetryWithoutStructuredFormat(cause) {
+    const message = formatErrorMessage(cause).toLowerCase();
+    return message.includes('response_format')
+        || message.includes('json schema')
+        || message.includes('structured output')
+        || (message.includes('does not support') && message.includes('json'));
 }

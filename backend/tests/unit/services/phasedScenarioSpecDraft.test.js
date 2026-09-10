@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { z } from 'zod';
 import { ConfigurationError } from '../../../src/domain/errors/GenerationError.js';
 import {
     batchManuallyAuthoredRelativePaths,
@@ -9,8 +10,70 @@ import {
     missingManuallyAuthoredPaths,
     shouldUsePhasedDraft,
 } from '../../../src/services/scenarioSpecGeneration/phasedScenarioSpecDraft.js';
+import { requestOpenAiStructuredDraft } from '../../../src/services/scenarioSpecGeneration/openAiStructuredDraftRequest.js';
+import { streamChatCompletion } from '../../../src/services/scenarioSpecGeneration/streamChatCompletion.js';
+
+vi.mock('../../../src/services/scenarioSpecGeneration/streamChatCompletion.js', () => ({
+    streamChatCompletion: vi.fn(),
+}));
 
 describe('phasedScenarioSpecDraft', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('retries without response_format when a provider rejects structured output', async () => {
+        vi.mocked(streamChatCompletion)
+            .mockRejectedValueOnce(new Error('OpenRouter rejected response_format: this model does not support json schema'))
+            .mockResolvedValueOnce({
+                content: JSON.stringify({ ok: true }),
+                refusal: '',
+                finishReason: undefined,
+                maxCompletionTokensUsed: undefined,
+                wasReducedForAffordability: false,
+            });
+
+        const result = await requestOpenAiStructuredDraft({
+            client: {},
+            logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
+            modelId: 'openrouter/test-model',
+            systemPrompt: 'sys',
+            userPrompt: 'user',
+            schema: z.object({ ok: z.boolean() }),
+            schemaName: 'test_schema',
+            providerLabel: 'OpenRouter',
+            phaseLabel: 'manual-files-1',
+            allowJsonRecovery: true,
+        });
+
+        expect(result.ok).toBe(true);
+        expect(vi.mocked(streamChatCompletion)).toHaveBeenCalledTimes(2);
+        expect(vi.mocked(streamChatCompletion).mock.calls[0][1].response_format).toBeDefined();
+        expect(vi.mocked(streamChatCompletion).mock.calls[1][1].response_format).toBeUndefined();
+    });
+
+    it('preserves the underlying provider error when structured retries also fail', async () => {
+        vi.mocked(streamChatCompletion)
+            .mockRejectedValueOnce(new Error('OpenRouter rejected response_format: this model does not support json schema'))
+            .mockRejectedValueOnce(new Error('fallback request also failed'));
+
+        const result = await requestOpenAiStructuredDraft({
+            client: {},
+            logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
+            modelId: 'openrouter/test-model',
+            systemPrompt: 'sys',
+            userPrompt: 'user',
+            schema: z.object({ ok: z.boolean() }),
+            schemaName: 'test_schema',
+            providerLabel: 'OpenRouter',
+            phaseLabel: 'manual-files-1',
+            allowJsonRecovery: true,
+        });
+
+        expect(result.ok).toBe(false);
+        expect(result.error.message).toContain('fallback request also failed');
+    });
+
     it('uses phased drafting for large file counts', () => {
         const files = Array.from({ length: 14 }, (_, index) => ({
             relativePath: `src/file${index}.jsx`,
