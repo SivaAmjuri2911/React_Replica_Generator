@@ -1,5 +1,6 @@
 import { err, ok } from '../../shared/Result.js';
 import { ConfigurationError } from '../../domain/errors/GenerationError.js';
+import { finalizeScenarioSpecDraft } from './baseTestFileUtils.js';
 const DEFAULT_PROVIDER = 'anthropic';
 /**
  * The single ScenarioSpecGenerationService the rest of the system depends
@@ -20,14 +21,22 @@ export class ProviderRoutingScenarioSpecGenerationService {
         if (!serviceResult.ok) {
             return serviceResult;
         }
-        return serviceResult.value.generateDraft(request);
+        const draftResult = await serviceResult.value.generateDraft(request);
+        if (!draftResult.ok) {
+            return draftResult;
+        }
+        return ok(finalizeScenarioSpecDraft(request, draftResult.value));
     }
     async reviseDraft(request, previousDraft, failureSummary) {
         const serviceResult = this.resolveService(request.provider);
         if (!serviceResult.ok) {
             return serviceResult;
         }
-        return serviceResult.value.reviseDraft(request, previousDraft, failureSummary);
+        const draftResult = await serviceResult.value.reviseDraft(request, previousDraft, failureSummary);
+        if (!draftResult.ok) {
+            return draftResult;
+        }
+        return ok(finalizeScenarioSpecDraft(request, draftResult.value));
     }
     resolveService(provider) {
         const resolvedProvider = provider ?? DEFAULT_PROVIDER;

@@ -10,6 +10,7 @@ import {
     scenarioSpecDraftSchema,
     scenarioSpecStructureDraftSchema,
 } from './scenarioSpecDraftContract.js';
+import { extractBaseTestPrefix } from './baseTestFileUtils.js';
 
 export const PHASED_DRAFT_MIN_FILE_COUNT = 14;
 export const PHASED_DRAFT_MIN_TOTAL_CHARS = 50_000;
@@ -144,7 +145,11 @@ export async function generatePhasedScenarioSpecDraft(request, invokeStructured,
         return structureResult;
     }
 
-    const structure = scenarioSpecStructureDraftSchema.parse(structureResult.value);
+    let structure = scenarioSpecStructureDraftSchema.parse(structureResult.value);
+    const baseTestPrefix = extractBaseTestPrefix(request.baseSolutionCodeFiles);
+    if (baseTestPrefix) {
+        structure = { ...structure, testPrefix: baseTestPrefix };
+    }
     logger.info(`${providerLabel}: received phased structure draft`, {
         scenarioName: structure.scenarioName,
         transformableFileCount: structure.transformableRelativePaths.length,

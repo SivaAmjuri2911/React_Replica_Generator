@@ -2,9 +2,8 @@ import { err, ok } from '../../shared/Result.js';
 import { RuleViolationError } from '../../domain/errors/GenerationError.js';
 const PLACEHOLDER_TOKEN_PATTERN = /PLACEHOLDER_[A-Z0-9_]*/g;
 /**
- * Enforces: design assets (video/screenshots/logo) that can't be
- * auto-generated must fall back to the base scenario's original working
- * URLs, never a broken PLACEHOLDER_* marker string.
+ * Enforces: never emit broken PLACEHOLDER_* link tokens — seed-data images
+ * should use working Unsplash URLs; static UI assets keep base URLs.
  */
 /**
  * @implements {GenerationRule}
@@ -29,7 +28,7 @@ export class NoPlaceholderLinksRule {
             }
         }
         if (offenders.length > 0) {
-            return err(new RuleViolationError(this.name, `Placeholder link tokens are not allowed — use the base scenario's original URLs instead. Found:\n${offenders.join('\n')}`));
+            return err(new RuleViolationError(this.name, `Placeholder link tokens are not allowed — use working URLs (fresh Unsplash links for seed-data images, or the base scenario's original URLs for static UI assets). Found:\n${offenders.join('\n')}`));
         }
         return ok(undefined);
     }

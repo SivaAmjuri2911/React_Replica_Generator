@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { extractBaseTestPrefix } from './baseTestFileUtils.js';
 /**
  * The schema and prompt every provider-specific generation service is held
  * to — kept in one place so switching/adding a provider (see
@@ -40,16 +41,26 @@ export const SCENARIO_SPEC_DRAFT_SCHEMA_NAME = 'scenario_spec_draft';
 export const SCENARIO_SPEC_STRUCTURE_SCHEMA_NAME = 'scenario_spec_structure_draft';
 export const MANUALLY_AUTHORED_FILES_BATCH_SCHEMA_NAME = 'manually_authored_files_batch';
 export const SCENARIO_SPEC_STRUCTURE_PHASE_NOTE = `PHASED DRAFTING — STRUCTURE ONLY: This is phase 1 of a multi-call draft for a large base project. Return every field below EXCEPT file contents. List each manually-authored file's relative path in "manuallyAuthoredRelativePaths" only — do NOT include a "manuallyAuthoredFiles" array or any file "content" fields. Those contents are generated in follow-up calls.`;
+/** Shared by both draft prompts — seed records get fresh Unsplash URLs; static UI assets keep base links. */
+export const SEED_DATA_IMAGE_URL_RULE = `SEED-DATA IMAGE URLs — when you regenerate seed/sample data records (arrays in App.jsx, sampleData.js, etc.), replace EVERY image URL field (imageUrl, coverImageUrl, thumbnailUrl, photoUrl, or similar) with a NEW, distinct, working https://images.unsplash.com/photo-...?w=800&q=80 URL that fits the new record's title/category/domain. Do NOT reuse image URLs from the base scenario in regenerated seed data — each record gets its own fresh Unsplash link. Never use PLACEHOLDER_* tokens.
+
+STATIC UI ASSETS — for non-seed assets (sidebar logo, not-found illustration, README screenshots/video links): keep the base project's original URL unchanged when present; never invent PLACEHOLDER_* markers; if the base had no such asset link, do not add one.`;
+/** Shared by both draft prompts — preserve base solution_code test file shape; only scenario wording changes. */
+export const TEST_FILE_PRESERVATION_RULE = `TEST FILES — start from the base solution_code test file. Preserve its exact structure: imports, describe blocks, setup/MSW handlers, test count, test order, and every weightage. Change ONLY scenario-specific strings (entity names, routes, labels, mock API URLs/payloads, assertions) so they match the new domain and the textReplacements/fileRenames you listed. Do NOT invent new describe blocks, reorder tests, drop tests, or change weightages.
+
+PREFER TRANSFORMABLE — when the base test file can be updated purely by the same textReplacements/fileRenames (no ambiguous-word collisions), list it in transformableRelativePaths instead of manuallyAuthoredFiles so the pipeline applies replacements mechanically and keeps test_case_enum markers byte-stable.
+
+When a test file IS manually authored, every marker must use the base project's existing test prefix exactly (e.g. :::RJSCED18BN_test_1:::) — never invent a new prefix.`;
 export const SCENARIO_SPEC_MANUAL_FILES_SYSTEM_PROMPT = `You are writing the full new contents for one batch of manually-authored files in a React scenario transformation spec. The overall structure (scenario name, test prefix, text replacements, file renames, color swaps, and which files are transformable vs manually-authored) was already decided — your job is ONLY to produce complete, correct file contents for the paths requested in this batch.
 
 Follow these rules for the files you write:
 
-1. TEST FILES — wrap every test description in the exact marker format:
-   ":::{testPrefix}_test_{N}:::{human description}:::{weightage}:::" where N starts at 1 and increments with no gaps, and weightage values are positive integers. Use the testPrefix from the supplied structure JSON.
+1. ${TEST_FILE_PRESERVATION_RULE}
 
 2. SEED/SAMPLE DATA FILES — regenerate with new records for the new scenario domain. Never wire seed data into component imports unless the base project did.
 
-3. LINKS/ASSETS — never invent placeholder URLs. Keep original URLs from the base file when present.
+3. LINKS/ASSETS —
+${SEED_DATA_IMAGE_URL_RULE}
 
 4. TEST ASSERTIONS MUST MATCH THE STRUCTURE — trace through the supplied textReplacements/fileRenames and assert exact resulting strings (casing, pluralization, routes). Every label you assert must be produced by a replacement in the structure, or match unchanged base wording.
 
@@ -107,19 +118,14 @@ Follow these rules exactly (they were learned the hard way, from real generation
    untouched character right before the matched text; inside a JSX className string, there's no
    dot to worry about at all.
 
-4. TEST FILES — if the base project has a test file, its replacement content in
-   "manuallyAuthoredFiles" MUST wrap every test's description in the exact marker format:
-   ":::{testPrefix}_test_{N}:::{human description}:::{weightage}:::" where N starts at 1 and
-   increments with no gaps, and weightage values are positive integers. testPrefix must not appear
-   in the list of already-used prefixes given to you.
+4. ${TEST_FILE_PRESERVATION_RULE}
 
 5. SEED/SAMPLE DATA FILES (e.g. sampleData.js) — regenerate with new records for the new scenario,
    as a manually-authored file. This data is seed-only: never wire it into component imports/logic
    even if the base project didn't either.
 
-6. LINKS/ASSETS — never invent placeholder URLs (e.g. "PLACEHOLDER_IMAGE_URL") for
-   images/videos/screenshots. If the base file's manually-authored content includes such a link,
-   keep the base scenario's original URL unchanged rather than fabricating a broken one.
+6. LINKS/ASSETS —
+${SEED_DATA_IMAGE_URL_RULE}
 
 7. CODE QUALITY — carry forward these baseline patterns into any manually-authored component code:
    guard against a null/undefined record after loading finishes (not just loading/error states)
@@ -301,6 +307,23 @@ export function resolveBaseSourceFile(baseSolutionCodeFiles, structure, targetPa
     return undefined;
 }
 
+/**
+ * @param {import('./ScenarioSpecGenerationService.js').ScenarioSpecGenerationRequest} request
+ * @returns {readonly string[]}
+ */
+export function buildTestPrefixPromptLines(request) {
+    const baseTestPrefix = extractBaseTestPrefix(request.baseSolutionCodeFiles);
+    if (baseTestPrefix) {
+        return [
+            `REQUIRED testPrefix: "${baseTestPrefix}" — reuse this exact prefix from the base solution_code test file.`,
+            'Do NOT invent a new test prefix. Every test marker must stay :::PREFIX_test_N::: with this same PREFIX.',
+        ];
+    }
+    return [
+        `Test prefixes already used by other scenarios (pick a new one not in this list): ${request.usedTestPrefixes.length > 0 ? request.usedTestPrefixes.join(', ') : '(none yet)'}`,
+    ];
+}
+
 /** @param {import('./ScenarioSpecGenerationService.js').ScenarioSpecGenerationRequest} request */
 export function buildScenarioSpecDraftUserPrompt(request) {
     const filesSection = request.baseSolutionCodeFiles
@@ -310,7 +333,7 @@ export function buildScenarioSpecDraftUserPrompt(request) {
         request.scenarioDescription
             ? `New scenario description: ${request.scenarioDescription}`
             : 'No scenario description was given — invent an appropriate new scenario yourself, per rule 10.',
-        `Test prefixes already used by other scenarios (do not reuse any of these): ${request.usedTestPrefixes.length > 0 ? request.usedTestPrefixes.join(', ') : '(none yet)'}`,
+        ...buildTestPrefixPromptLines(request),
         '',
         'Base project source files (paths are relative to the base solution_code root):',
         '',
