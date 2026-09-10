@@ -1,9 +1,11 @@
 import { loadEnvFile } from '../config/loadEnv.js';
 loadEnvFile();
 import path from 'node:path';
+import http from 'node:http';
 import { promises as fs } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
+import { attachDevPreviewProxy } from './devPreviewProxy.js';
 import cors from 'cors';
 import { CompositionRoot } from '../config/CompositionRoot.js';
 import { FileSystemScenarioSpecRepository } from '../config/FileSystemScenarioSpecRepository.js';
@@ -75,6 +77,8 @@ app.use((error, _request, response, _next) => {
     compositionRoot.logger.error('Unhandled request error', { error: error instanceof Error ? error.message : String(error) });
     response.status(500).json({ error: error instanceof Error ? error.message : String(error) });
 });
-app.listen(PORT, () => {
+const server = http.createServer(app);
+attachDevPreviewProxy(app, server);
+server.listen(PORT, () => {
     compositionRoot.logger.info(`replica-generator API listening on http://localhost:${PORT}`);
 });

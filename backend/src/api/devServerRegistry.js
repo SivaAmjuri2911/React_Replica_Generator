@@ -7,7 +7,8 @@ const execAsync = promisify(exec);
 /**
  * @typedef {object} DevServerEntry
  * @property {string} projectDir Absolute path to the npm project root.
- * @property {string} url
+ * @property {string} url Browser-openable preview URL (public proxy URL when deployed).
+ * @property {string} internalOrigin Origin passed to the HTTP proxy (e.g. http://127.0.0.1:5173).
  * @property {number|undefined} pid
  * @property {import('node:child_process').ChildProcess|undefined} [child]
  */
@@ -28,6 +29,16 @@ export function unregisterDevServer(key) {
 /** @param {string} key */
 export function getDevServer(key) {
     return runningDevServers.get(key);
+}
+
+/** @param {string} slug */
+export function getDevServerForSlug(slug) {
+    for (const [key, entry] of runningDevServers.entries()) {
+        if (key.startsWith(`${slug}:`)) {
+            return entry;
+        }
+    }
+    return undefined;
 }
 
 /** @param {string} projectDir */

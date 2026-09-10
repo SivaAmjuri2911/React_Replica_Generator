@@ -12,6 +12,7 @@ import { inspectSessionOutput } from '../services/sessionOutputStatus.js';
 import { buildOutputDeliverableZip, outputDeliverablePathsFromSpec, } from '../../services/archive/buildOutputDeliverableZip.js';
 import { migrateLegacyIdeBasedCodingLayout } from '../../config/migrateLegacyIdeBasedCodingLayout.js';
 import { getDevServer, registerDevServer, stopDevServersForProjectDir, unregisterDevServer, } from '../devServerRegistry.js';
+import { buildDevPreviewPublicPath, buildDevPreviewPublicUrl, isDeployedApi, } from '../publicApiBaseUrl.js';
 const ANALYSIS_SLUG_PATTERN = /^analysis-[a-z0-9-]+$/i;
 const ZIP_MIME_TYPES = new Set([
     'application/zip',
@@ -281,7 +282,7 @@ export function buildAnalysisSessionRoutes(scenariosRoot, analysisJobService, up
             if (script === 'dev') {
                 const devKey = `${slug}:${normalizedDir}`;
                 const existing = getDevServer(devKey);
-                if (existing && await isDevServerReady(existing.url)) {
+                if (existing && await isDevServerReady(existing.internalOrigin)) {
                     response.json({
                         script,
                         relativeDir: normalizedDir,
@@ -298,10 +299,13 @@ export function buildAnalysisSessionRoutes(scenariosRoot, analysisJobService, up
                 if (existing) {
                     await stopDevServersForProjectDir(resolved.absolutePath);
                 }
-                const started = await startDevServer(resolved.absolutePath);
+                const started = await startDevServer(resolved.absolutePath, slug);
+                const internalOrigin = `http://127.0.0.1:${started.port}`;
+                const previewUrl = buildDevPreviewPublicUrl(slug) ?? started.localUrl;
                 registerDevServer(devKey, {
                     pid: started.child.pid,
-                    url: started.url,
+                    url: previewUrl,
+                    internalOrigin,
                     projectDir: resolved.absolutePath,
                     child: started.child,
                 });
@@ -314,7 +318,7 @@ export function buildAnalysisSessionRoutes(scenariosRoot, analysisJobService, up
                     mode: 'server',
                     alreadyRunning: false,
                     pid: started.child.pid,
-                    url: started.url,
+                    url: previewUrl,
                     stdout: started.stdout,
                     stderr: started.stderr,
                     exitCode: 0,
@@ -635,13 +639,22 @@ async function isDevServerReady(url) {
     }
 }
 
-/** @param {string} projectDir */
-async function startDevServer(projectDir) {
+/** @param {string} projectDir @param {string} [sessionSlug] */
+async function startDevServer(projectDir, sessionSlug) {
     const preferredPort = await readPreferredDevPort(projectDir);
     const port = await findAvailablePort(preferredPort);
-    const url = `http://127.0.0.1:${port}`;
+    const localUrl = `http://127.0.0.1:${port}`;
     const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    const command = `${npmCommand} run dev -- --host 127.0.0.1 --port ${port} --strictPort`;
+    let viteArgs = `--host 127.0.0.1 --port ${port} --strictPort`;
+    if (isDeployedApi() && sessionSlug) {
+        const previewBase = `${buildDevPreviewPublicPath(sessionSlug)}/`;
+        const publicOrigin = buildDevPreviewPublicUrl(sessionSlug)?.replace(/\/$/, '') ?? '';
+        viteArgs += ` --base ${previewBase}`;
+        if (publicOrigin) {
+            viteArgs += ` --origin ${publicOrigin}`;
+        }
+    }
+    const command = `${npmCommand} run dev -- ${viteArgs}`;
     const child = spawnShellProcess(command, projectDir, { detached: false, stdioMode: 'pipe' });
     /** @type {string} */
     let stdout = '';
@@ -650,10 +663,10 @@ async function startDevServer(projectDir) {
 
     await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
-            reject(new Error(`Dev server did not become ready at ${url} within 45 seconds.\n${stderr}\n${stdout}`.trim()));
+            reject(new Error(`Dev server did not become ready at ${localUrl} within 45 seconds.\n${stderr}\n${stdout}`.trim()));
         }, 45000);
         const poll = setInterval(() => {
-            void isDevServerReady(url).then((ready) => {
+            void isDevServerReady(localUrl).then((ready) => {
                 if (ready) {
                     clearTimeout(timeout);
                     clearInterval(poll);
@@ -686,8 +699,9 @@ async function startDevServer(projectDir) {
 
     return {
         child,
-        url,
-        stdout: `Started dev server at ${url} (pid ${child.pid ?? 'unknown'})`,
+        port,
+        localUrl,
+        stdout: `Started dev server at ${localUrl} (pid ${child.pid ?? 'unknown'})`,
         stderr,
     };
 }

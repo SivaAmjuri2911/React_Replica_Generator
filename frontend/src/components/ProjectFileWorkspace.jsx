@@ -60,6 +60,7 @@ export function ProjectFileWorkspace({ sessionSlug, preferOutput = false, fullPa
     const [autoSelected, setAutoSelected] = useState(false);
     const [packageJsonPaths, setPackageJsonPaths] = useState([]);
     const [runTargetDir, setRunTargetDir] = useState(undefined);
+    const [treeRefreshBump, setTreeRefreshBump] = useState(0);
 
     const isDirty = selectedPath !== undefined && !fileBinary && savedContent !== undefined && editorContent !== savedContent;
 
@@ -156,7 +157,7 @@ export function ProjectFileWorkspace({ sessionSlug, preferOutput = false, fullPa
             setSavedContent(editorContent);
             setFileSize(result.size);
             setSaveMessage('Saved');
-            setTreeRefreshKey((key) => key + 1);
+            setTreeRefreshBump((key) => key + 1);
         }
         catch (error) {
             setSaveError(error instanceof Error ? error.message : String(error));
@@ -223,7 +224,7 @@ export function ProjectFileWorkspace({ sessionSlug, preferOutput = false, fullPa
 
     return (<div className={`project-file-workspace ${fullPage ? 'project-file-workspace-page' : 'project-file-workspace-embedded'}`}>
       <aside className="project-file-sidebar">
-        <ScenarioFileExplorer sessionSlug={sessionSlug} selectedPath={selectedPath} onSelectFile={selectFile} onTreeLoaded={handleTreeLoaded} refreshToken={refreshToken}/>
+        <ScenarioFileExplorer sessionSlug={sessionSlug} selectedPath={selectedPath} onSelectFile={selectFile} onTreeLoaded={handleTreeLoaded} refreshToken={refreshToken + treeRefreshBump}/>
       </aside>
       <div className="project-file-editor">
         <div className="project-file-tabbar">
@@ -276,6 +277,10 @@ export function ProjectFileWorkspace({ sessionSlug, preferOutput = false, fullPa
           </div>)}
 
         {!canRun && packageDirOptions.length === 0 && (<p className="project-file-run-hint muted">No runnable npm project yet — build the replica to get an output folder.</p>)}
+
+        {import.meta.env.VITE_API_BASE_URL && (<p className="project-file-run-hint muted">
+            Deployed mode: Save writes to the server temporarily. After editing, download the output zip to keep a local copy. Run dev opens a preview through the deployed backend.
+          </p>)}
 
         {runOutput && (<div className="project-file-terminal">
             <div className="project-file-terminal-header">
