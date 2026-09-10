@@ -20,17 +20,17 @@ describe('scenarioSpecDraftContract', () => {
         expect(SCENARIO_SPEC_DRAFT_SYSTEM_PROMPT).toContain('STATIC UI ASSETS');
     });
 
-    it('requires preserving the base test file structure and prefix', () => {
-        expect(TEST_FILE_PRESERVATION_RULE).toContain('start from the base solution_code test file');
-        expect(TEST_FILE_PRESERVATION_RULE).toContain('PREFER TRANSFORMABLE');
-        expect(SCENARIO_SPEC_DRAFT_SYSTEM_PROMPT).toContain('start from the base solution_code test file');
+    it('requires test files to stay on the transformable mechanical path', () => {
+        expect(TEST_FILE_PRESERVATION_RULE).toContain('NEVER manually author');
+        expect(TEST_FILE_PRESERVATION_RULE).toContain('transformableRelativePaths only');
+        expect(SCENARIO_SPEC_DRAFT_SYSTEM_PROMPT).toContain('NEVER manually author');
     });
 
     it('tells the model to reuse the base test prefix when one exists', () => {
         const prompt = buildScenarioSpecDraftUserPrompt({
             baseSolutionCodeFiles: [{
                 relativePath: 'src/__tests__/Main.test.jsx',
-                contents: "it(':::RJSCEP7M4A_test_1:::example:::5:::', () => {});",
+                contents: "it(':::RJSCEP7M4A_TEST_1:::example:::5:::', () => {});",
             }],
             usedTestPrefixes: ['RJSCED18BN'],
         });

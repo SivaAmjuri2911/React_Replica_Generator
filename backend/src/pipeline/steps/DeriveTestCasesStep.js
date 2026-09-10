@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { FileSystemError } from '../../domain/errors/GenerationError.js';
+import { normalizeTestFileMarkers } from '../../services/scenarioSpecGeneration/baseTestFileUtils.js';
 const TEST_FILE_EXTENSION_PATTERN = /\.test\.jsx?$/;
 /**
  * Derives the IDE_BASED_CODING test_cases[] directly from the promoted
@@ -34,7 +35,8 @@ export class DeriveTestCasesStep {
         if (!contentResult.ok) {
             throw contentResult.error;
         }
-        const derivedResult = this.derivationService.deriveFromTestFileContents(contentResult.value, context.spec.testPrefix);
+        const normalizedContent = normalizeTestFileMarkers(contentResult.value, context.spec.testPrefix);
+        const derivedResult = this.derivationService.deriveFromTestFileContents(normalizedContent, context.spec.testPrefix);
         if (!derivedResult.ok) {
             throw derivedResult.error;
         }

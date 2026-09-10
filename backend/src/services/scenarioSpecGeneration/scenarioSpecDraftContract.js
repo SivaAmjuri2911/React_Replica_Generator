@@ -46,11 +46,9 @@ export const SEED_DATA_IMAGE_URL_RULE = `SEED-DATA IMAGE URLs — when you regen
 
 STATIC UI ASSETS — for non-seed assets (sidebar logo, not-found illustration, README screenshots/video links): keep the base project's original URL unchanged when present; never invent PLACEHOLDER_* markers; if the base had no such asset link, do not add one.`;
 /** Shared by both draft prompts — preserve base solution_code test file shape; only scenario wording changes. */
-export const TEST_FILE_PRESERVATION_RULE = `TEST FILES — start from the base solution_code test file. Preserve its exact structure: imports, describe blocks, setup/MSW handlers, test count, test order, and every weightage. Change ONLY scenario-specific strings (entity names, routes, labels, mock API URLs/payloads, assertions) so they match the new domain and the textReplacements/fileRenames you listed. Do NOT invent new describe blocks, reorder tests, drop tests, or change weightages.
+export const TEST_FILE_PRESERVATION_RULE = `TEST FILES — NEVER manually author *.test.jsx / *.test.js files and NEVER include them in manuallyAuthoredFiles or manuallyAuthoredRelativePaths. The pipeline copies the base solution_code test file and applies your textReplacements/fileRenames mechanically, preserving every :::PREFIX_test_N::: (or legacy :::PREFIX_TEST_N:::) marker, test count, order, and weightage exactly.
 
-PREFER TRANSFORMABLE — when the base test file can be updated purely by the same textReplacements/fileRenames (no ambiguous-word collisions), list it in transformableRelativePaths instead of manuallyAuthoredFiles so the pipeline applies replacements mechanically and keeps test_case_enum markers byte-stable.
-
-When a test file IS manually authored, every marker must use the base project's existing test prefix exactly (e.g. :::RJSCED18BN_test_1:::) — never invent a new prefix.`;
+List each base test file (using its NEW path after any fileRenames) in transformableRelativePaths only. Do NOT invent a new testPrefix — the pipeline reuses the prefix already present in the base test file. Change scenario wording by adding the appropriate textReplacements entries (entity names, routes, labels, mock API URLs), not by rewriting the test file body.`;
 export const SCENARIO_SPEC_MANUAL_FILES_SYSTEM_PROMPT = `You are writing the full new contents for one batch of manually-authored files in a React scenario transformation spec. The overall structure (scenario name, test prefix, text replacements, file renames, color swaps, and which files are transformable vs manually-authored) was already decided — your job is ONLY to produce complete, correct file contents for the paths requested in this batch.
 
 Follow these rules for the files you write:

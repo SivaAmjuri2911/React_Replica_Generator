@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { MarkerBasedTestCaseDerivationService } from '../../../src/services/testCaseDerivation/MarkerBasedTestCaseDerivationService.js';
 describe('MarkerBasedTestCaseDerivationService', () => {
     const service = new MarkerBasedTestCaseDerivationService();
+    it('derives test cases from legacy TEST markers with uppercase test segment', () => {
+        const contents = `it(':::ABC_TEST_1:::First check:::5:::', () => {});`;
+        const result = service.deriveFromTestFileContents(contents, 'ABC');
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+            expect(result.value[0]?.testCaseEnum).toBe('ABC_test_1');
+        }
+    });
+
     it('derives test cases from valid sequential markers', () => {
         const contents = `
       it(':::ABC_test_1:::First check:::5:::', () => {});

@@ -3,6 +3,7 @@ import { outputSolutionCodePath, packageName } from '../../domain/models/Scenari
 import { setPackageJsonName } from './packageJsonUtils.js';
 import { findReadmeFile } from './findReadmeFile.js';
 import { FileSystemError } from '../../domain/errors/GenerationError.js';
+import { isTestFileRelativePath, normalizeTestFileMarkers } from '../../services/scenarioSpecGeneration/baseTestFileUtils.js';
 /**
  * solution_code is built by: copying the base, applying declared file
  * renames, running text/color replacements only on the explicitly declared
@@ -56,7 +57,10 @@ export class TransformSolutionCodeStep {
             // a second, simultaneous pass over the already-renamed text instead of being folded
             // into the same ordered list.
             const renamed = this.textTransformation.applyReplacements(contentResult.value, spec.textReplacements);
-            const transformed = this.textTransformation.applySimultaneousReplacements(renamed, colorReplacements);
+            let transformed = this.textTransformation.applySimultaneousReplacements(renamed, colorReplacements);
+            if (isTestFileRelativePath(relativePath)) {
+                transformed = normalizeTestFileMarkers(transformed, spec.testPrefix);
+            }
             const writeResult = await this.fileSystem.writeFile(filePath, transformed);
             if (!writeResult.ok) {
                 throw writeResult.error;

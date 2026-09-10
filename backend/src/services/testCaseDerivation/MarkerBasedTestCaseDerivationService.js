@@ -1,6 +1,6 @@
 import { err, ok } from '../../shared/Result.js';
 import { TestCaseParsingError } from '../../domain/errors/GenerationError.js';
-const MARKER_PATTERN = /:::([A-Za-z0-9]+)_test_(\d+):::([\s\S]*?):::(\d+):::/g;
+const MARKER_PATTERN = /:::([A-Za-z0-9]+)_test_(\d+):::([\s\S]*?):::(\d+):::/gi;
 /**
  * @implements {TestCaseDerivationService}
  */
