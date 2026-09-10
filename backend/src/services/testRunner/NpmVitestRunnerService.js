@@ -97,7 +97,11 @@ export class NpmVitestRunnerService {
  */
 function runVitestInDetachedShell(command, cwd, maxBuffer) {
     return new Promise((resolve, reject) => {
-        const env = { ...process.env, CI: 'true' };
+        // Render (and most Node hosts) set NODE_ENV=production for the web service.
+        // Vitest inherits that unless overridden, so react-dom loads its production
+        // build and @testing-library/react hits "React.act is not a function" before
+        // any assertion runs — every test fails 0/N with the same act-compat error.
+        const env = { ...process.env, CI: 'true', NODE_ENV: 'test' };
         const child = process.platform === 'win32'
             ? spawn('cmd.exe', ['/d', '/s', '/c', command], {
                 cwd,
