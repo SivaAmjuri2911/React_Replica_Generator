@@ -67,8 +67,21 @@
  * @property {string} startedAt
  * @property {string} [finishedAt]
  * @property {readonly GenerationLogLine[]} logs
- * @property {GeneratedProjectDto} [result]
+ * @property {GeneratedProjectDto & {
+ *   evaluationSummary?: {
+ *     totalImplementedChecks: number,
+ *     passedChecks: number,
+ *     failedChecks: number,
+ *     scoreOutOf100: number,
+ *   }
+ * }} [result]
  * @property {GenerationJobFailureDto} [failure]
+ * @property {{
+ *   totalImplementedChecks: number,
+ *   passedChecks: number,
+ *   failedChecks: number,
+ *   scoreOutOf100: number,
+ * }} [evaluationSummary]
  * @property {number} [attemptsUsed]
  * @property {readonly ProgressStepDto[]} [steps]
  */

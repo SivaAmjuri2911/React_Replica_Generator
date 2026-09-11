@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { z } from 'zod';
-import { ConfigurationError } from '../../../src/domain/errors/GenerationError.js';
+import { ConfigurationError, RuleViolationError } from '../../../src/domain/errors/GenerationError.js';
 import {
     batchManuallyAuthoredRelativePaths,
     chunkItems,
@@ -12,6 +12,8 @@ import {
 } from '../../../src/services/scenarioSpecGeneration/phasedScenarioSpecDraft.js';
 import { requestOpenAiStructuredDraft } from '../../../src/services/scenarioSpecGeneration/openAiStructuredDraftRequest.js';
 import { streamChatCompletion } from '../../../src/services/scenarioSpecGeneration/streamChatCompletion.js';
+import { EnforceRulesStep } from '../../../src/pipeline/steps/EnforceRulesStep.js';
+import { err } from '../../../src/shared/Result.js';
 
 vi.mock('../../../src/services/scenarioSpecGeneration/streamChatCompletion.js', () => ({
     streamChatCompletion: vi.fn(),
@@ -148,5 +150,30 @@ describe('phasedScenarioSpecDraft', () => {
 
         expect(merged.scenarioName).toBe('ticket-management');
         expect(merged.manuallyAuthoredFiles).toHaveLength(1);
+    });
+
+    it('preserves rule violation details in the thrown error context', async () => {
+        const rulesRegistry = {
+            evaluateAll: async () => err([
+                new RuleViolationError('PackageJsonAlignmentRule', 'Package names do not match'),
+            ]),
+        };
+
+        const step = new EnforceRulesStep(rulesRegistry, {});
+
+        await expect(step.execute({
+            spec: { scenarioName: 'demo' },
+            prefilledCodePath: 'prefilled',
+            solutionCodePath: 'solution',
+            testcasePath: 'testcase',
+            ideBasedCodingJsonPath: 'ide-based-coding.json',
+            testCases: [],
+            questionId: 'question',
+            ideSessionId: 'session',
+        })).rejects.toMatchObject({
+            context: {
+                violations: [expect.objectContaining({ ruleName: 'PackageJsonAlignmentRule' })],
+            },
+        });
     });
 });

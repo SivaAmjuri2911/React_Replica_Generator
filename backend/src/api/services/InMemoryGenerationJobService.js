@@ -9,6 +9,7 @@ import { GENERATION_STEP_LABELS } from '../../config/progressLabels.js';
 import { stopDevServersForProjectDir } from '../devServerRegistry.js';
 import { writeGenerationSessionMeta } from './writeGenerationSessionMeta.js';
 import { outputPrefilledCodePath, outputSolutionCodePath } from '../../domain/models/ScenarioSpec.js';
+import { buildScenarioEvaluationSummary } from '../../services/evaluation/ScenarioEvaluationCatalog.js';
 /**
  * Runs generations in the background inside the same Node process and
  * tracks their progress in memory. Adequate for a single-operator tool
@@ -133,25 +134,38 @@ export class InMemoryGenerationJobService {
                 if (!workflowResult.ok) {
                     throw workflowResult.error;
                 }
+                const evaluationSummary = buildScenarioEvaluationSummary();
+                const generatedProject = {
+                    ...workflowResult.value.generatedProject,
+                    evaluationSummary,
+                };
                 await writeGenerationSessionMeta(specPath, workflowResult.value.generatedProject);
                 this.updateJob(jobId, {
                     status: 'succeeded',
                     finishedAt: new Date().toISOString(),
-                    result: workflowResult.value.generatedProject,
+                    result: generatedProject,
                     attemptsUsed: workflowResult.value.attemptsUsed,
                 });
                 return;
             }
             const pipeline = this.compositionRoot.buildGenerationPipeline(jobLogger);
             const result = await pipeline.run(spec, onProgress);
+            const evaluationSummary = buildScenarioEvaluationSummary();
+            const generatedProject = {
+                ...result,
+                evaluationSummary,
+            };
             await writeGenerationSessionMeta(specPath, result);
             this.updateJob(jobId, {
                 status: 'succeeded',
                 finishedAt: new Date().toISOString(),
-                result,
+                result: generatedProject,
             });
         }
         catch (error) {
+            const evaluationSummary = error instanceof GenerationError && Array.isArray(error.context?.violations)
+                ? buildScenarioEvaluationSummary({ violations: error.context.violations })
+                : undefined;
             const failure = error instanceof GenerationError
                 ? { code: error.code, message: error.message, context: error.context }
                 : { code: 'UNEXPECTED_ERROR', message: String(error), context: {} };
@@ -169,6 +183,7 @@ export class InMemoryGenerationJobService {
                 status: 'failed',
                 finishedAt: now,
                 failure,
+                evaluationSummary,
                 steps: [...steps],
             });
         }

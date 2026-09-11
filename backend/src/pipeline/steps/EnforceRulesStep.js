@@ -34,7 +34,11 @@ export class EnforceRulesStep {
             fileSystem: this.fileSystem,
         });
         if (!result.ok) {
-            throw new RuleViolationError('EnforceRulesStep', `Generation produced ${result.error.length} rule violation(s):\n${summarizeViolations(result.error)}`);
+            throw new RuleViolationError(
+                'EnforceRulesStep',
+                `Generation produced ${result.error.length} rule violation(s):\n${summarizeViolations(result.error)}`,
+                { violations: result.error },
+            );
         }
     }
     require(value, fieldName) {

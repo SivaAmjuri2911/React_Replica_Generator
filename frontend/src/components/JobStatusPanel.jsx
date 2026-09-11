@@ -12,6 +12,8 @@ const STATUS_LABEL = {
 };
 /** @param {JobStatusPanelProps} props */
 export function JobStatusPanel({ job }) {
+    const evaluationSummary = job.result?.evaluationSummary ?? job.evaluationSummary;
+
     return (<div className="job-panel">
       <div className="job-header">
         <h2>{job.scenarioName}</h2>
@@ -24,6 +26,16 @@ export function JobStatusPanel({ job }) {
             <strong>{job.failure.code}</strong>
           </p>
           <p>{job.failure.message}</p>
+        </div>)}
+
+      {evaluationSummary && (<div className={`result-block ${job.status === 'failed' ? 'result-failure' : 'result-success'}`}>
+          <h3>Project evaluation</h3>
+          <dl>
+            <dt>Score</dt>
+            <dd>{evaluationSummary.scoreOutOf100}/100</dd>
+            <dt>Checks</dt>
+            <dd>{evaluationSummary.passedChecks}/{evaluationSummary.totalImplementedChecks} passed</dd>
+          </dl>
         </div>)}
 
       <details className="log-panel" open={job.status === 'running'}>
